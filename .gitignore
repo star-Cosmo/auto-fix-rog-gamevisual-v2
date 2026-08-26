@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.basedpyright/
+
+# Build artifacts
+build/
+dist/
+
+# OS junk
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
