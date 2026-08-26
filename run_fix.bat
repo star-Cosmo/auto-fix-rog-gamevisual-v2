@@ -13,6 +13,7 @@ rem  NOTE: ASCII-only on purpose; non-ASCII breaks under cp936 console.
 rem ================================================================
 setlocal
 cd /d "%~dp0"
+title GameVisual Fixer v2
 set "SCRIPT=%~dp0fix_gamevisual.py"
 set "RUNTIME_DIR=%~dp0_python"
 rem Download source ORDER MATTERS: CN mirrors first (python.org trickles

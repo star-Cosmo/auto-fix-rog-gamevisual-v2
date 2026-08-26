@@ -42,6 +42,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--model", default=None, help="override motherboard model, e.g. FX507ZM")
     parser.add_argument("--panel-hwid", default=None, help="override panel hardware id, e.g. 770E150F")
+    parser.add_argument(
+        "--gamevisual-dir",
+        type=Path,
+        default=None,
+        help="override GameVisual directory (advanced/testing)",
+    )
     parser.add_argument("--elevated", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--version", action="version", version=__version__)
     return parser.parse_args(argv)
@@ -138,7 +144,7 @@ def _run(args: argparse.Namespace) -> int:
 
     library_dir = (args.library or _default_library_dir()).resolve()
     library_names = sorted(p.name for p in library_dir.iterdir()) if library_dir.is_dir() else []
-    gv_dir = DEFAULT_GAMEVISUAL_DIR
+    gv_dir = args.gamevisual_dir.resolve() if args.gamevisual_dir else DEFAULT_GAMEVISUAL_DIR
     system_names = sorted(p.name for p in gv_dir.iterdir()) if gv_dir.is_dir() else []
 
     plan = build_plan(

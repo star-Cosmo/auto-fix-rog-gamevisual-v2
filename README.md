@@ -14,6 +14,28 @@
 文件名硬件ID = hex(EDID[9]) hex(EDID[8]) hex(EDID[11]) hex(EDID[10])
 ```
 
+<p align="center">
+  <img src="docs/images/naming-rule.svg" width="720" alt="EDID 到 ICC 文件名的推导规则">
+</p>
+
+整个修复流程：
+
+```mermaid
+flowchart LR
+    A["读取注册表 EDID"] --> B["计算面板硬件 ID<br/>如 770E150F"]
+    B --> C{"GameVisual 目录<br/>已有对应 icm?"}
+    C -- "有" --> Z["无需修复"]
+    C -- "没有" --> D["扫描 ICC 库匹配同面板<br/>+ 检测错误命名的旧文件"]
+    D --> E["自动备份 → 正名复制<br/>CMDEF 同步系统色彩目录"]
+    E --> F["断网 → 关机 → 开机<br/>打开奥创看 GameVisual"]
+```
+
+运行效果（沙箱演示，识别机型与面板 → 生成修复计划）：
+
+<p align="center">
+  <img src="docs/images/console-run.png" width="720" alt="修复计划 dry-run 输出">
+</p>
+
 该规则已用五家面板厂商的真实数据交叉验证：
 
 | 厂商 | EDID[8..11] | 计算出的 ID |
@@ -39,6 +61,18 @@
 
 **推荐**：双击 `run_fix.bat`，跟着提示走。
 
+没有 Python 环境时会弹窗询问，同意后自动下载便携版（免管理员）：
+
+<p align="center">
+  <img src="docs/images/popup-confirm.png" width="420" alt="环境自举确认弹窗">
+</p>
+
+如果接了多个显示器，程序会列出所有面板的硬件 ID 供你选择（笔记本内屏通常是不带外接品牌的那项）：
+
+<p align="center">
+  <img src="docs/images/console-panels.png" width="720" alt="多面板检测选择界面">
+</p>
+
 或者命令行：
 
 ```
@@ -61,6 +95,11 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 > **断网 → 关机 → 开机 → 再打开奥创中心看 GameVisual**
 
 断网是为了防止奥创联网重新下载官方 ICC 包覆盖本地文件（官方包里没有你的新面板）。确认可用后再联网观察；若联网后又失效，使用 GameVisual 前先断网即可。
+
+修复成功后奥创中心的 GameVisual 恢复正常切换色彩模式：
+
+<!-- 效果图占位: 截图奥创中心 GameVisual 页面保存为 docs/images/gamevisual-ok.png 后取消下行注释 -->
+<!-- <p align="center"><img src="docs/images/gamevisual-ok.png" width="720" alt="修复后的 GameVisual"></p> -->
 
 ## 找不到我的面板怎么办？
 

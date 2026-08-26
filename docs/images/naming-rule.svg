@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="420" viewBox="0 0 880 420">
+  <defs>
+    <style>
+      .mono { font-family: 'Consolas', 'Courier New', monospace; }
+      .dim  { fill: #8b949e; }
+      .blue { fill: #79c0ff; }
+      .org  { fill: #ffa657; }
+      .grn  { fill: #7ee787; }
+      .pur  { fill: #d2a8ff; }
+      .wht  { fill: #e6edf3; }
+    </style>
+  </defs>
+
+  <!-- window frame -->
+  <rect x="1" y="1" width="878" height="418" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+  <circle cx="30" cy="28" r="6" fill="#ff5f57"/>
+  <circle cx="50" cy="28" r="6" fill="#febc2e"/>
+  <circle cx="70" cy="28" r="6" fill="#28c840"/>
+  <text x="440" y="33" text-anchor="middle" class="mono dim" font-size="13">GameVisual ICC 命名规则</text>
+  <line x1="12" y1="46" x2="868" y2="46" stroke="#21262d" stroke-width="1"/>
+
+  <!-- step 1: raw bytes -->
+  <text x="40" y="86" class="mono dim" font-size="17">注册表 EDID[8..11] =</text>
+  <text x="300" y="86" class="mono blue"  font-size="22" font-weight="bold">0E</text>
+  <text x="360" y="86" class="mono org"   font-size="22" font-weight="bold">77</text>
+  <text x="420" y="86" class="mono grn"   font-size="22" font-weight="bold">0F</text>
+  <text x="480" y="86" class="mono grn"   font-size="22" font-weight="bold">15</text>
+  <text x="560" y="86" class="mono dim" font-size="15">← CSW150F 内屏实测值</text>
+
+  <!-- brackets -->
+  <path d="M 300 100 L 300 112 L 386 112 L 386 100" fill="none" stroke="#ffa657" stroke-width="1.5"/>
+  <path d="M 420 100 L 420 112 L 506 112 L 506 100" fill="none" stroke="#7ee787" stroke-width="1.5"/>
+
+  <!-- step 2: decode -->
+  <text x="40" y="140" class="mono org" font-size="17">厂商码 77 0E</text>
+  <text x="230" y="140" class="mono dim" font-size="15">小端序 → 16位值 0x0E77 → 解出 "CSW"</text>
+  <text x="40" y="168" class="mono grn" font-size="17">产品号 15 0F</text>
+  <text x="230" y="168" class="mono dim" font-size="15">值 0x150F → PnP 名 CSW150F 的 "150F"</text>
+
+  <!-- step 3: hardware id -->
+  <text x="40" y="222" class="mono wht" font-size="20">面板硬件 ID =</text>
+  <text x="230" y="222" class="mono org" font-size="22" font-weight="bold">"770E"</text>
+  <text x="330" y="222" class="mono dim" font-size="20">+</text>
+  <text x="360" y="222" class="mono grn" font-size="22" font-weight="bold">"150F"</text>
+  <text x="460" y="222" class="mono dim" font-size="20">=</text>
+  <text x="490" y="222" class="mono pur" font-size="24" font-weight="bold">770E150F</text>
+
+  <line x1="40" y1="248" x2="840" y2="248" stroke="#21262d" stroke-width="1"/>
+
+  <!-- step 4: filename -->
+  <text x="40" y="292" class="mono dim"   font-size="20">最终文件名:</text>
+  <text x="190" y="292" class="mono wht" font-size="21" font-weight="bold">FX507ZM</text>
+  <text x="330" y="292" class="mono dim" font-size="21">_</text>
+  <text x="355" y="292" class="mono org" font-size="21" font-weight="bold">10DE</text>
+  <text x="425" y="292" class="mono dim" font-size="21">_</text>
+  <text x="450" y="292" class="mono pur" font-size="21" font-weight="bold">770E150F</text>
+  <text x="590" y="292" class="mono dim" font-size="21">.icm</text>
+
+  <text x="190" y="318" class="mono dim" font-size="14">机型(主板)</text>
+  <text x="355" y="318" class="mono dim" font-size="14">显卡(10DE=N卡/8086=Intel)</text>
+  <text x="450" y="318" class="mono dim" font-size="14">屏幕硬件 ID</text>
+
+  <!-- footer -->
+  <line x1="12" y1="348" x2="868" y2="348" stroke="#21262d" stroke-width="1"/>
+  <text x="40" y="382" class="mono grn" font-size="15">✓ FX507ZM 实机验证通过</text>
+  <text x="320" y="382" class="mono dim" font-size="15">BOE / AUO / LGD / CMN / CSW 五厂商交叉验证</text>
+</svg>
