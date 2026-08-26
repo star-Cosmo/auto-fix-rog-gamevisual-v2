@@ -38,13 +38,13 @@ flowchart LR
 
 该规则已用五家面板厂商的真实数据交叉验证：
 
-| 厂商 | EDID[8..11] | 计算出的 ID |
-|---|---|---|
-| CSW | `0E 77 0F 15` | `770E150F` |
-| BOE | `09 E5 07 0A` | `E5090A07` |
-| AUO | `06 AF A2 D2` | `AF06D2A2` |
-| LGD | `30 E4 63 05` | `E4300563` |
-| CMN | `0D AE 3C 15` | `AE0D153C` |
+| 厂商代码 | 厂商 | EDID[8..11] | 计算出的 ID |
+|---|---|---|---|
+| CSW | 国产面板商（替换屏市场常见） | `0E 77 0F 15` | `770E150F` |
+| BOE | 京东方 | `09 E5 07 0A` | `E5090A07` |
+| AUO | 友达光电 | `06 AF A2 D2` | `AF06D2A2` |
+| LGD | LG Display（乐金显示） | `30 E4 63 05` | `E4300563` |
+| CMN | 群创光电（Innolux） | `0D AE 3C 15` | `AE0D153C` |
 
 ### 相比 v1 的改进
 
@@ -96,17 +96,33 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 
 断网是为了防止奥创联网重新下载官方 ICC 包覆盖本地文件（官方包里没有你的新面板）。确认可用后再联网观察；若联网后又失效，使用 GameVisual 前先断网即可。
 
-修复成功后奥创中心的 GameVisual 恢复正常切换色彩模式：
+修复成功后奥创中心的 GameVisual 恢复正常，全部色彩模式可自由切换（实机效果图）：
 
-<!-- 效果图占位: 截图奥创中心 GameVisual 页面保存为 docs/images/gamevisual-ok.png 后取消下行注释 -->
-<!-- <p align="center"><img src="docs/images/gamevisual-ok.png" width="720" alt="修复后的 GameVisual"></p> -->
+<p align="center">
+  <img src="docs/images/gamevisual-running.png" width="720" alt="修复后的 GameVisual：全部色彩模式可用">
+</p>
 
 ## 找不到我的面板怎么办？
 
-仓库 `color/` 是社区共享的 ICC 库，`compressed/` 里还有按机型打包的压缩包。如果都没有你的面板 ID：
+仓库 `color/` 是社区共享的 ICC 库（**开放自取**），`compressed/` 里还有按机型打包的压缩包。如果都没有你的面板 ID：
 
-1. 找一台同款屏幕、GameVisual 正常的机器，把它的 icm 文件提交到上游项目；
-2. 或者在 Windows「颜色管理」里手动给屏幕关联任意近似 ICC 应急。
+1. 在 Windows「颜色管理」里手动给屏幕关联任意近似 ICC 应急；
+2. 或者找一台同款屏幕、GameVisual 正常的机器提取 ICC，贡献到**本仓库**（见下一节）。
+
+## 贡献你的 ICC 文件（欢迎！）
+
+上游项目 [vanted7580/AutoFixGameVisual](https://github.com/vanted7580/AutoFixGameVisual) 已存档为只读，**本仓库接棒开放 ICC 共享**：`color/` 里的所有文件大家随意自取，也欢迎把你的 ICC 提交进来，帮下一个换屏人一把。
+
+**如何提取**：在一台 GameVisual 正常的华硕机器上，从下面两个目录找以机型开头的 `.icm` 文件：
+
+```
+C:\ProgramData\ASUS\GameVisual\
+C:\Windows\System32\spool\drivers\color\
+```
+
+文件名格式是 `机型_显卡_屏幕ID[_CMDEF].icm`，例如 `FX507ZM_10DE_770E150F.icm`。
+
+**如何提交**：Fork 本仓库 → 把 icm 放进 `color/` → 发 PR；不方便用 Git 的话，开一个 Issue 上传文件也行。
 
 ## 常见问题
 
@@ -121,7 +137,7 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 
 ## 致谢与许可
 
-- 原始项目与思路：[vanted7580/AutoFixGameVisual](https://github.com/vanted7580/AutoFixGameVisual)（作者 @VANTED）
+- 原始项目与思路：[vanted7580/AutoFixGameVisual](https://github.com/vanted7580/AutoFixGameVisual)（作者 @VANTED，已存档只读，本仓库接棒 ICC 共享）
 - ICC 文件库贡献者：Gannod-Kitkut (FX507VV)、syh (GA503RM)、Chen-Mengze (FA507RM/G614JVR)、Akafusu_Rain (G733Z/G533Z/FA506QR) 等
 - 本项目是上游项目的衍生作品，遵循 **GPL-3.0** 协议开源，ICC 文件版权归原作者所有
 
