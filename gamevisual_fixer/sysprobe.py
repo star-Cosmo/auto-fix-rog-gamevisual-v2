@@ -169,12 +169,19 @@ def is_admin() -> bool:
 
 
 def try_elevate(script_args: list[str]) -> bool:
-    """Relaunch self elevated; True when a UAC launch was successfully started."""
+    """Relaunch self elevated; True when a UAC launch was started.
+
+    The elevated process is wrapped in ``cmd /k`` so the console window
+    stays open after the fix finishes — otherwise non-technical users
+    never see the result (or the disconnect-network instructions) before
+    the window closes.
+    """
     if not is_windows():
         return False
     script = sys.argv[0]
     params = " ".join([f'"{script}"', *script_args, "--elevated"])
+    cmd = f'/k "{sys.executable}" {params}'
     result = ctypes.windll.shell32.ShellExecuteW(  # type: ignore[attr-defined]
-        None, "runas", sys.executable, params, None, 1
+        None, "runas", "cmd.exe", cmd, None, 1
     )
     return int(result) > 32

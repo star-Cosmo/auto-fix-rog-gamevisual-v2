@@ -39,6 +39,12 @@ REASON_ZH: Final[dict[str, str]] = {
 
 _MISNAMED_PREFIX: Final = "repair misnamed id "
 
+# sysprobe 返回的 detail 是英文，展示层翻译成小白能看懂的说法
+DETAIL_ZH: Final[dict[str, str]] = {
+    "no instance exposes an EDID value": "该设备未提供 EDID 数据（外接转换器/采集卡等属正常现象）",
+    "BaseBoardProduct/SystemProductName not found in registry": "注册表里找不到机型信息",
+}
+
 
 def _reason_zh(reason: str) -> str:
     if reason in REASON_ZH:
@@ -46,6 +52,10 @@ def _reason_zh(reason: str) -> str:
     if reason.startswith(_MISNAMED_PREFIX):
         return f"修正错误命名的旧文件（{reason[len(_MISNAMED_PREFIX):]}）"
     return reason
+
+
+def _detail_zh(detail: str) -> str:
+    return DETAIL_ZH.get(detail, detail)
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -80,16 +90,26 @@ def _ask(prompt: str) -> str:
     """input() that survives closed stdin / Ctrl-C by returning empty."""
     try:
         return input(prompt).strip()
-    except (EOFError, KeyboardInterrupt):
+    except (EOFError, KeyboardInterrupt, OSError):
         return ""
 
 
-def _pick_panel(probes: list[PanelInfo | ProbeIssue]) -> EdidInfo | None:
-    """Return one panel's EdidInfo; interactive choice when several exist."""
+def _pick_panel(
+    probes: list[PanelInfo | ProbeIssue],
+    library_names: list[str] | None = None,
+    model: str | None = None,
+) -> EdidInfo | None:
+    """Return one panel's EdidInfo.
+
+    Auto-picks when only one panel exists, or when exactly one of several
+    panels has ICC files named ``{model}_..._{hwid}.icm`` in the bundled
+    library — a model-specific match proves which panel is the internal
+    one, so a double-click run finishes without keyboard input.
+    """
     panels = [p for p in probes if isinstance(p, PanelInfo)]
     issues = [p for p in probes if isinstance(p, ProbeIssue)]
     for issue in issues:
-        print(f"[检测提示] {issue.source}: {issue.detail}")
+        print(f"[检测提示] {issue.source}: {_detail_zh(issue.detail)}")
     unique_hwids: dict[str, EdidInfo] = {}
     for panel in panels:
         unique_hwids.setdefault(panel.info.hardware_id, panel.info)
@@ -98,8 +118,21 @@ def _pick_panel(probes: list[PanelInfo | ProbeIssue]) -> EdidInfo | None:
         return None
     if len(unique_hwids) == 1:
         return next(iter(unique_hwids.values()))
+    # several distinct panels: a model-prefixed library hit is the only
+    # trustworthy signal — other models' icm files prove nothing
+    if library_names and model:
+        prefix = f"{model}_"
+        matched = [
+            (hwid, info)
+            for hwid, info in unique_hwids.items()
+            if any(n.startswith(prefix) and hwid in n for n in library_names)
+        ]
+        if len(matched) == 1:
+            hwid, info = matched[0]
+            print(f"ICC 库中存在 {model} 专属文件（硬件 ID {hwid}），自动选用该面板。")
+            return info
     ordered = list(unique_hwids.items())
-    print("检测到多个面板:")
+    print("检测到多个面板，且无法自动判断哪个是笔记本内屏:")
     for idx, (_hwid, info) in enumerate(ordered, start=1):
         print(f"  {idx}. 厂商={info.vendor}  硬件ID={info.hardware_id}（产品号 {info.product_code}）")
     raw = _ask(f"请选笔记本内屏对应的序号 [1-{len(ordered)}，直接回车=1]: ")
@@ -112,7 +145,7 @@ def _resolve_model(explicit: str | None) -> str | None:
         return explicit.strip()
     found = board_product()
     if isinstance(found, ProbeIssue):
-        print(f"[检测提示] 机型: {found.detail}")
+        print(f"[检测提示] 机型: {_detail_zh(found.detail)}")
         manual = _ask("请手动输入机型型号（如 FX507ZM）: ")
         return manual or None
     print(f"机型: {found}")
@@ -161,9 +194,15 @@ def _run(args: argparse.Namespace) -> int:
     print("第 1 步 / 共 3 步: 检测屏幕与机型")
     print("-" * 46)
     probes = list_panels()
+    library_dir = (args.library or _default_library_dir()).resolve()
+    library_names = sorted(p.name for p in library_dir.iterdir()) if library_dir.is_dir() else []
+    model = _resolve_model(args.model)
+    if model is None:
+        print("缺少机型型号，无法命名配置文件，已退出。")
+        return 1
     expected = args.panel_hwid.upper() if args.panel_hwid else None
     if expected is None:
-        picked = _pick_panel(probes)
+        picked = _pick_panel(probes, library_names, model)
         if picked is None:
             print("未检测到屏幕 EDID，无法继续。")
             print("请确认: 本工具要在笔记本本机直接双击运行（不要在远程桌面里跑）。")
@@ -175,13 +214,6 @@ def _run(args: argparse.Namespace) -> int:
         expected_info = EdidInfo(vendor="?", product_code=expected[-4:], hardware_id=expected)
         print(f"使用手动指定的面板硬件 ID: {expected_info.hardware_id}")
 
-    model = _resolve_model(args.model)
-    if model is None:
-        print("缺少机型型号，无法命名配置文件，已退出。")
-        return 1
-
-    library_dir = (args.library or _default_library_dir()).resolve()
-    library_names = sorted(p.name for p in library_dir.iterdir()) if library_dir.is_dir() else []
     gv_dir = args.gamevisual_dir.resolve() if args.gamevisual_dir else DEFAULT_GAMEVISUAL_DIR
     system_names = sorted(p.name for p in gv_dir.iterdir()) if gv_dir.is_dir() else []
 
