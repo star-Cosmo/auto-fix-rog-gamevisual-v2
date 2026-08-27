@@ -142,6 +142,15 @@ C:\Windows\System32\spool\drivers\color\
 **Q: 为什么我这里检测出好几个面板？**
 你接了外接显示器。选你笔记本内屏对应的那个（通常是不带外接品牌的那项），不确定就逐个试。
 
+## 问题反馈
+
+使用中遇到问题、有建议、或发现 Bug？请通过以下方式联系：
+
+- **邮箱**：chenbin2004sz@163.com（优先）
+- **GitHub Issues**：直接在仓库提 Issue，最好附上机型、屏幕型号、报错截图
+
+我会尽快回复。
+
 ## 致谢与许可
 
 - 原始项目与思路：[vanted7580/AutoFixGameVisual](https://github.com/vanted7580/AutoFixGameVisual)（作者 @VANTED，已存档只读，本仓库接棒 ICC 共享）
