@@ -64,52 +64,70 @@ flowchart LR
 | 权限 | 直接失败 | 自动请求 UAC 提权 |
 | 数据安全 | 无备份 | 修改前自动完整备份 |
 
-## 使用方法
+## 使用教程（小白照做版）
 
-**推荐**：双击 `run_fix.bat`，程序自动检测机型和屏幕、自动完成修复，基本不需要你操作。
-（中途弹出的 UAC 窗口点「是」；看到修复完成前不要关窗口）
+### 第 1 步：下载
 
-没有 Python 环境时会弹窗询问，同意后自动下载便携版（免管理员）：
+打开本仓库右侧的 **Releases** 页面（或直达：`https://github.com/star-Cosmo/auto-fix-rog-gamevisual-v2/releases/latest`），下载 Assets 里的 zip 压缩包，**右键 → 全部解压** 到任意文件夹（比如桌面）。
+
+> 不要直接在压缩包里双击运行！必须先解压。
+
+### 第 2 步：双击 `run_fix.bat`
+
+打开解压出来的文件夹，找到 `run_fix.bat`，双击它。之后：
+
+1. 没装 Python？会弹窗问你是否自动下载便携版（约 11MB，免管理员），点「是」等它装完：
 
 <p align="center">
   <img src="docs/images/popup-confirm.png" width="420" alt="环境自举确认弹窗">
 </p>
 
-如果接了多个显示器，程序会列出所有面板的硬件 ID 供你选择（笔记本内屏通常是不带外接品牌的那项）：
+2. 程序自动检测你的机型和屏幕，生成修复计划并**自动执行**
+3. 中途弹出 UAC 窗口（问你是否允许修改）→ 点「是」
+4. 看到「修复完成!」大字提示即为成功，**修复前会自动备份**到 `C:\ProgramData\ASUS\GameVisual_backup_时间戳\`，可随时还原
+
+接了外接显示器的情况：程序会自动识别笔记本内屏；万一无法判断，会列出面板列表让你输序号（选不带外接品牌的那项）。
+
+运行效果（识别机型与面板 → 生成修复计划）：
 
 <p align="center">
   <img src="docs/images/console-panels.png" width="720" alt="多面板检测选择界面">
 </p>
 
-或者命令行：
+### 第 3 步：断网 → 关机 → 开机（不做等于白修！）
 
-```
-python fix_gamevisual.py            # 交互模式
-python fix_gamevisual.py --dry-run  # 只看计划不改文件
-python fix_gamevisual.py --yes      # 跳过确认
+修复完成后程序会提醒你，照做：
+
+1. **断网**：关 Wi-Fi / 拔网线
+2. **关机**：完全关机，不是重启
+3. **开机**，打开奥创中心 → 显示设置 → GameVisual
+
+看到色彩模式亮起、能自由切换就大功告成（实机效果图）：
+
+<p align="center">
+  <img src="docs/images/gamevisual-running.png" width="720" alt="修复后的 GameVisual：全部色彩模式可用">
+</p>
+
+> **为什么必须断网？** 奥创检测到本地文件"不合规"时会联网重新下载官方 ICC 包覆盖——官方包里没有你第三方屏的文件，等于白修。断网启动它才会读本地文件。确认能用后再联网观察；若联网后又失效，以后用 GameVisual 前先断网即可。
+
+<details>
+<summary><b>命令行高级用法（普通用户无需理会）</b></summary>
+
+```text
+python fix_gamevisual.py --dry-run   # 只看计划，不改任何文件
+python fix_gamevisual.py --ask       # 修复前要确认（默认自动执行）
 python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 ```
 
 | 参数 | 说明 |
 |---|---|
 | `--dry-run` | 只显示将要做的操作，不写任何文件 |
-| `--ask` | 修复前询问确认（默认自动执行，双击党无需理会） |
-| `--yes` | 兼容保留（默认已自动执行） |
+| `--ask` | 修复前询问确认（默认自动执行） |
 | `--library <目录>` | 自定义 ICC 库目录（默认本仓库 `color/`） |
 | `--model <代码>` | 手动指定机型代码 |
 | `--panel-hwid <8位>` | 手动指定面板硬件 ID |
 
-## 修复成功后必做
-
-> **断网 → 关机 → 开机 → 再打开奥创中心看 GameVisual**
-
-断网是为了防止奥创联网重新下载官方 ICC 包覆盖本地文件（官方包里没有你的新面板）。确认可用后再联网观察；若联网后又失效，使用 GameVisual 前先断网即可。
-
-修复成功后奥创中心的 GameVisual 恢复正常，全部色彩模式可自由切换（实机效果图）：
-
-<p align="center">
-  <img src="docs/images/gamevisual-running.png" width="720" alt="修复后的 GameVisual：全部色彩模式可用">
-</p>
+</details>
 
 ## 找不到我的面板怎么办？
 
@@ -142,7 +160,7 @@ C:\Windows\System32\spool\drivers\color\
 来自 python.org 官方的嵌入式发行版（国内自动走华为云/npmmirror 镜像加速），解压在本仓库 `_python\` 文件夹内，不写注册表、不需要管理员、可随时删除。
 
 **Q: 为什么我这里检测出好几个面板？**
-你接了外接显示器。选你笔记本内屏对应的那个（通常是不带外接品牌的那项），不确定就逐个试。
+你接了外接显示器。程序通常会自动识别内屏；无法判断时会列出清单让你选，选不带外接品牌（AOC/戴尔/三星等）的那项即可。
 
 ## 问题反馈
 
