@@ -1,0 +1,43 @@
+name: 📁 ICC 文件贡献
+description: 提交你的面板 ICC 文件，帮下一个换屏人
+labels: ["icc-contribution"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请把 .icm 文件直接拖到下面的「文件附件」框里上传**（Issue 支持附件）。
+        提取方法见仓库 CONTRIBUTING.md。
+
+  - type: input
+    id: source-model
+    attributes:
+      label: 来源机器机型
+      description: 从哪台华硕机器提取的，如 FX507VV
+    validations:
+      required: true
+
+  - type: input
+    id: hwid
+    attributes:
+      label: 面板硬件 ID
+      description: 文件名最后 8 位，如 770E150F
+    validations:
+      required: true
+
+  - type: dropdown
+    id: screen-type
+    attributes:
+      label: 该文件来自
+      options:
+        - 原装屏（出厂配置）
+        - 换屏后修复成功的机器
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注
+      description: 面板型号（如 CSW150F / NE156QHM）、分辨率、刷新率等
+    validations:
+      required: false

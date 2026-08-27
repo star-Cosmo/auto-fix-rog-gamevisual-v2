@@ -1,0 +1,54 @@
+name: 🐞 Bug 报告
+description: 工具运行报错、修复后 GameVisual 仍不可用等
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请尽量填全下面每一项——**机型 + 面板硬件 ID + 完整输出**能让我直接定位问题，少一轮来回。
+
+  - type: input
+    id: model
+    attributes:
+      label: 机型
+      description: 笔记本底部标签或奥创里看到的型号，如 FX507ZM
+    validations:
+      required: true
+
+  - type: input
+    id: panel
+    attributes:
+      label: 屏幕型号 / 面板硬件 ID
+      description: 程序输出的「发现面板」一行，如 CSW150F / 770E150F；不知道就留空
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scene
+    attributes:
+      label: 遇到的情况
+      options:
+        - 双击 run_fix.bat 没反应或闪退
+        - 下载便携版 Python 失败
+        - 提示检测不到屏幕/机型
+        - 修复执行成功，但 GameVisual 仍然不可用
+        - 修复后过几天又失效
+        - 其他（在描述里说明）
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 完整运行输出（截图或复制文本）
+      description: 黑窗口里的全部内容，越多越好
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 是否接了外接显示器、Windows 版本、重试过几次等
+    validations:
+      required: false

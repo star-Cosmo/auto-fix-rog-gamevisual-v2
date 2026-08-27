@@ -1,0 +1,19 @@
+name: 💡 功能建议
+description: 想让工具更好用？提出来
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: pain
+    attributes:
+      label: 你遇到的问题 / 不便
+      description: 描述你现在卡在哪一步
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你期望的效果
+      description: 越具体越好
+    validations:
+      required: true
