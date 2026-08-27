@@ -131,6 +131,30 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 
 </details>
 
+## 项目结构
+
+看完教程，如果你想进一步了解（或者参与贡献）这个项目，这里是它的全貌：
+
+```text
+auto-fix-gamevisual-v2/
+├── run_fix.bat              # 小白入口：双击运行（自动准备 Python 环境再启动修复）
+├── fix_gamevisual.py        # 命令行入口（薄启动器，兼容嵌入式 Python）
+├── gamevisual_fixer/        # 核心 Python 包（纯标准库，零第三方依赖）
+│   ├── edid.py              #   EDID 解析：原始字节 → 面板硬件 ID（核心公式在这里）
+│   ├── sysprobe.py          #   注册表探测：屏幕面板 / 机型 / 管理员权限 + UAC 提权
+│   ├── planner.py           #   修复计划：根据检测结果生成动作清单（纯函数，可离线测试）
+│   ├── applier.py           #   执行计划：先完整备份，再复制文件
+│   ├── cli.py               #   交互界面：全中文提示、参数解析、智能选屏
+│   └── __main__.py          #   python -m gamevisual_fixer 入口
+├── color/                   # 社区共享 ICC 库：63 个文件，开放自取、欢迎贡献
+├── compressed/              # 按机型打包的 ICC 压缩包（17 个机型）
+├── tests/                   # pytest 单元测试（EDID 公式 / 计划生成 / 面板选择）
+├── docs/images/             # README 用的截图与示意图
+└── .github/                 # 行为准则 / 贡献指南 / 安全政策 / Issue 与 PR 模板
+```
+
+设计上就四层：**检测**（edid + sysprobe）→ **决策**（planner）→ **执行**（applier）→ **交互**（cli）。决策层是纯函数，不碰文件系统，所以核心逻辑可以完全离线测试；ICC 库（`color/`）和代码完全解耦——贡献一个 ICC 文件不需要懂任何代码。
+
 ## 找不到我的面板怎么办？
 
 仓库 `color/` 是社区共享的 ICC 库（**开放自取**），`compressed/` 里还有按机型打包的压缩包。如果都没有你的面板 ID：

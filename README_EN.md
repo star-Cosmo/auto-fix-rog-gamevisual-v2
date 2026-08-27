@@ -131,6 +131,30 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # manual overri
 
 </details>
 
+## Project structure
+
+Once you've followed the tutorial, here's the big picture — whether you're just curious or want to contribute:
+
+```text
+auto-fix-gamevisual-v2/
+├── run_fix.bat              # beginner entry: double-click (prepares Python, then runs the fix)
+├── fix_gamevisual.py        # CLI entry (thin launcher, works with embeddable Python)
+├── gamevisual_fixer/        # core Python package (stdlib only, zero third-party deps)
+│   ├── edid.py              #   EDID parsing: raw bytes → panel hardware ID (core formula)
+│   ├── sysprobe.py          #   registry probes: panels / model / admin rights + UAC elevation
+│   ├── planner.py           #   repair plan: builds the action list from probe results (pure function)
+│   ├── applier.py           #   executes the plan: full backup first, then copy
+│   ├── cli.py               #   interaction: Chinese UI, arg parsing, smart panel picking
+│   └── __main__.py          #   python -m gamevisual_fixer entry
+├── color/                   # community ICC library: 63 files, free to take, contributions welcome
+├── compressed/              # per-model ICC archives (17 models)
+├── tests/                   # pytest unit tests (EDID formula / plan building / panel picking)
+├── docs/images/             # screenshots & diagrams used by the READMEs
+└── .github/                 # code of conduct / contributing / security / issue & PR templates
+```
+
+The design is four layers: **detect** (edid + sysprobe) → **decide** (planner) → **apply** (applier) → **interact** (cli). The decision layer is a pure function that never touches the filesystem, so the core logic is fully testable offline; the ICC library (`color/`) is completely decoupled from the code — contributing an ICC file requires zero coding.
+
 ## Can't find your panel?
 
 The repo's `color/` folder is a community-shared ICC library (**free to take from**); `compressed/` has per-model archives. If neither has your panel ID:

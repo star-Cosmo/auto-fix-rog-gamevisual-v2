@@ -131,6 +131,30 @@ python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手動指定
 
 </details>
 
+## プロジェクト構成
+
+チュートリアルが終わったら、プロジェクトの中身も紹介します（貢献したい方にも）：
+
+```text
+auto-fix-gamevisual-v2/
+├── run_fix.bat              # 初心者向け入口：ダブルクリック（Python 環境を自動準備して修復開始）
+├── fix_gamevisual.py        # CLI 入口（薄いランチャー、埋め込み Python にも対応）
+├── gamevisual_fixer/        # コア Python パッケージ（標準ライブラリのみ、依存ゼロ）
+│   ├── edid.py              #   EDID 解析：バイト列 → パネル HWID（核心の数式はここ）
+│   ├── sysprobe.py          #   レジストリ調査：パネル / 機種 / 管理者権限 + UAC 昇格
+│   ├── planner.py           #   修復プラン：検出結果からアクション一覧を生成（純粋関数）
+│   ├── applier.py           #   プラン実行：まず完全バックアップ、その後コピー
+│   ├── cli.py               #   対話 UI：中国語表示、引数解析、スマートパネル選択
+│   └── __main__.py          #   python -m gamevisual_fixer 入口
+├── color/                   # コミュニティ ICC ライブラリ：63 ファイル、自由に取得可・貢献歓迎
+├── compressed/              # 機種別 ICC アーカイブ（17 機種）
+├── tests/                   # pytest 単体テスト（EDID 数式 / プラン生成 / パネル選択）
+├── docs/images/             # README 用のスクリーンショットと図
+└── .github/                 # 行動規範 / 貢献ガイド / セキュリティ / Issue・PR テンプレート
+```
+
+設計は 4 層：**検出**（edid + sysprobe）→ **判断**（planner）→ **実行**（applier）→ **対話**（cli）。判断層はファイルシステムに触れない純粋関数なので、コアロジックは完全にオフラインでテスト可能。ICC ライブラリ（`color/`）はコードから完全に分離されており、ICC の貢献にコーディング知識は一切不要です。
+
 ## 自分のパネルが見つからないときは
 
 リポジトリの `color/` はコミュニティ共有の ICC ライブラリ（**自由に取得可**）、`compressed/` には機種別アーカイブがあります。どちらにも自分のパネル ID がない場合：
