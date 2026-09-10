@@ -11,6 +11,7 @@ import ctypes.wintypes
 import re
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
 from .edid import EdidError, EdidInfo, parse_edid
@@ -168,19 +169,36 @@ def is_admin() -> bool:
     return bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
 
 
+def build_elevate_cmd(script_args: list[str]) -> str:
+    """Build the ``cmd.exe /c ... & pause`` parameter string for the elevated relaunch.
+
+    cmd.exe strips the first and last quote of the whole ``/c`` payload
+    whenever there are more than two quotes, so the payload is wrapped in
+    one extra outer quote pair — after stripping, the inner quoting stays
+    intact and the command parses correctly.  Without it, users saw
+    「文件名、目录名或卷标语法不正确」 in the elevated window.
+
+    ``/c ... & pause`` instead of ``/k``: the fixer runs, then cmd's
+    localized "press any key" prompt appears; one keypress closes the
+    elevated window — non-technical users never face a raw prompt.
+    """
+    from subprocess import list2cmdline  # noqa: PLC0415 — quotes each element spaces-safe
+
+    script = Path(sys.argv[0]).resolve()  # absolute: elevated cwd is System32
+    args_str = list2cmdline([str(script), *script_args, "--elevated"])
+    return f'/c ""{sys.executable}" {args_str}" & pause'
+
+
 def try_elevate(script_args: list[str]) -> bool:
     """Relaunch self elevated; True when a UAC launch was started.
 
-    The elevated process is wrapped in ``cmd /k`` so the console window
-    stays open after the fix finishes — otherwise non-technical users
-    never see the result (or the disconnect-network instructions) before
-    the window closes.
+    The elevated process is wrapped in ``cmd /c ... & pause`` so the fix
+    result stays visible until the user presses any key, after which the
+    elevated window closes by itself.
     """
     if not is_windows():
         return False
-    script = sys.argv[0]
-    params = " ".join([f'"{script}"', *script_args, "--elevated"])
-    cmd = f'/k "{sys.executable}" {params}'
+    cmd = build_elevate_cmd(script_args)
     result = ctypes.windll.shell32.ShellExecuteW(  # type: ignore[attr-defined]
         None, "runas", "cmd.exe", cmd, None, 1
     )

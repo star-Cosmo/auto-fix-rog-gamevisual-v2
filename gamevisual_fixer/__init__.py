@@ -1,3 +1,3 @@
 """Auto Fix ASUS GameVisual v2 — EDID-exact ICC repair tool."""
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
