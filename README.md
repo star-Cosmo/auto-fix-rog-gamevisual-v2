@@ -144,6 +144,7 @@ auto-fix-gamevisual-v2/
 │   ├── sysprobe.py          #   注册表探测：屏幕面板 / 机型 / 管理员权限 + UAC 提权
 │   ├── planner.py           #   修复计划：根据检测结果生成动作清单（纯函数，可离线测试）
 │   ├── applier.py           #   执行计划：先完整备份，再复制文件
+│   ├── logger.py            #   运行日志：桌面留档，一次运行一份，排障可回传
 │   ├── cli.py               #   交互界面：全中文提示、参数解析、智能选屏
 │   └── __main__.py          #   python -m gamevisual_fixer 入口
 ├── color/                   # 社区共享 ICC 库：63 个文件，开放自取、欢迎贡献

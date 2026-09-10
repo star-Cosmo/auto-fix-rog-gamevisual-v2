@@ -10,6 +10,7 @@ from typing import Final
 from . import __version__
 from .applier import AppliedReport, apply
 from .edid import EdidInfo
+from .logger import RunLog
 from .planner import FixPlan, build_plan
 from .sysprobe import (
     PanelInfo,
@@ -175,11 +176,17 @@ def main(argv: list[str] | None = None) -> int:
     if not is_windows():
         print("本工具只能在 Windows 上运行。")
         return 2
+    log = RunLog()
+    log.log("GameVisual 修复工具 v2 启动")
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        return _run(args)
+        return _run(args, log)
     except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
         print("程序出现意外错误:", file=sys.stderr)
+        log.log_exception(sys.exc_info()[1])
+        log.set_summary("程序异常终止，请把桌面日志文件发给作者")
+        log_path = log.finish()
+        print(f"（详细日志已保存到 {log_path}）", file=sys.stderr)
         import traceback  # noqa: PLC0415
 
         traceback.print_exc()
@@ -187,7 +194,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-def _run(args: argparse.Namespace) -> int:
+def _run(args: argparse.Namespace, log: RunLog) -> int:
+    log.log("参数: dry_run={}, ask={}, model={}, panel_hwid={}".format(
+        args.dry_run, args.ask, args.model, args.panel_hwid
+    ))
     print("==== GameVisual 修复工具 v2 ====")
     print("本工具会自动检测屏幕与机型，并把正确的 ICC 配置复制到奥创目录。")
     print()
@@ -196,9 +206,24 @@ def _run(args: argparse.Namespace) -> int:
     probes = list_panels()
     library_dir = (args.library or _default_library_dir()).resolve()
     library_names = sorted(p.name for p in library_dir.iterdir()) if library_dir.is_dir() else []
+
+    # --- 日志: 检测到的面板 ---
+    panel_infos = [p for p in probes if isinstance(p, PanelInfo)]
+    panel_issues = [p for p in probes if isinstance(p, ProbeIssue)]
+    log.log_section("第 1 步: 检测屏幕与机型")
+    log.log_kv("检测到面板数", str(len(panel_infos)))
+    for idx, pi in enumerate(panel_infos):
+        log.log_kv(f"面板 {idx+1}", f"PnP={pi.pnp_name}  厂商={pi.info.vendor}  硬件ID={pi.info.hardware_id}  产品号={pi.info.product_code}")
+    for issue in panel_issues:
+        log.log_kv("检测提示", f"{issue.source}: {issue.detail}")
+    log.log_kv("ICC 库文件数", str(len(library_names)))
+
     model = _resolve_model(args.model)
+    log.log_kv("机型", str(model))
     if model is None:
         print("缺少机型型号，无法命名配置文件，已退出。")
+        log.set_summary("缺少机型型号")
+        log.finish()
         return 1
     expected = args.panel_hwid.upper() if args.panel_hwid else None
     if expected is None:
@@ -207,6 +232,8 @@ def _run(args: argparse.Namespace) -> int:
             print("未检测到屏幕 EDID，无法继续。")
             print("请确认: 本工具要在笔记本本机直接双击运行（不要在远程桌面里跑）。")
             print("仍失败的话，可用 --panel-hwid 手动指定 8 位硬件 ID（见 README）。")
+            log.set_summary("未检测到屏幕 EDID，无法继续")
+            log.finish()
             return 1
         expected_info = picked
         print(f"已自动识别目标面板: {expected_info.hardware_id}")
@@ -214,8 +241,13 @@ def _run(args: argparse.Namespace) -> int:
         expected_info = EdidInfo(vendor="?", product_code=expected[-4:], hardware_id=expected)
         print(f"使用手动指定的面板硬件 ID: {expected_info.hardware_id}")
 
+    log.log_kv("目标面板硬件ID", expected_info.hardware_id)
+    log.log_kv("目标面板产品号", expected_info.product_code)
+
     gv_dir = args.gamevisual_dir.resolve() if args.gamevisual_dir else DEFAULT_GAMEVISUAL_DIR
     system_names = sorted(p.name for p in gv_dir.iterdir()) if gv_dir.is_dir() else []
+    log.log_kv("GameVisual 目录", str(gv_dir))
+    log.log_kv("已有配置文件数", str(len(system_names)))
 
     print()
     print("第 2 步 / 共 3 步: 生成修复计划")
@@ -224,40 +256,69 @@ def _run(args: argparse.Namespace) -> int:
         model, expected_info.hardware_id, expected_info.product_code, library_names, system_names
     )
     _print_plan(plan)
+
+    # --- 日志: 修复计划 ---
+    log.log_section("第 2 步: 生成修复计划")
+    log.log_kv("计划操作数", str(len(plan.actions)))
+    for idx, action in enumerate(plan.actions, 1):
+        log.log_kv(f"操作 {idx}", f"{action.src_name} -> {action.dst_file} (原因: {action.reason})")
     if not plan.actions:
         print()
         print("没有需要复制的文件: 本机已有匹配的配置（或 ICC 库里没有你的面板）。")
         print("若 GameVisual 仍然不可用:")
         print("  1. 看仓库 compressed/ 里有没有你机型的压缩包;")
         print("  2. 或按 README「贡献你的 ICC 文件」一节提交你的面板文件。")
+        log.set_summary("无需修复，已有匹配配置")
+        log.finish()
         return 0
     if args.dry_run:
         print()
         print("试运行结束: 以上为将要执行的操作，本次未修改任何文件。")
+        log.set_summary("试运行结束，未修改任何文件")
+        log.finish()
         return 0
 
     if args.ask:
         answer = _ask("确认执行修复? [直接回车=确认，输入 n=取消]: ").lower()
         if answer.startswith("n"):
             print("已取消，未修改任何文件。")
+            log.set_summary("用户手动取消")
+            log.finish()
             return 0
 
     print()
     print("第 3 步 / 共 3 步: 备份并修复（无需你操作）")
     print("-" * 46)
+    log.log_section("第 3 步: 备份并修复")
     if not is_admin():
         print("需要管理员权限: 正在弹出 UAC 窗口，请在弹窗中点「是」。")
+        log.log("请求管理员权限 (UAC 提权)")
         if try_elevate([*sys.argv[1:], "--yes"] if args.yes else [*sys.argv[1:]]):
             print("已在新窗口继续修复，本窗口可以直接关闭。")
+            log.set_summary("UAC 提权后在新窗口继续")
+            log.finish()
             return 0
         print("[提示] 未获得授权，尝试直接写入（可能失败）...")
+        log.log("UAC 提权失败，尝试直接写入")
 
     report: AppliedReport = apply(plan, gv_dir, library_dir, DEFAULT_SPOOL_DIR)
+
+    # --- 日志: 执行结果 ---
+    log.log_kv("复制成功数", str(report.copied))
+    log.log_kv("跳过数（已存在）", str(report.skipped))
+    if report.backup_path is not None:
+        log.log_kv("备份路径", str(report.backup_path))
+    else:
+        log.log_kv("备份", "未创建备份")
+    log.set_summary(f"修复完成：复制 {report.copied} 个文件，跳过 {report.skipped} 个")
+    log_path = log.finish()
+
     print()
     print("=" * 46)
     print(f"  修复完成! 已复制 {report.copied} 个文件，跳过 {report.skipped} 个。")
     if report.backup_path is not None:
         print(f"  修改前的完整备份: {report.backup_path}")
+    print(f"  日志文件: {log_path}")
     print("=" * 46)
     print(NEXT_STEPS)
     return 0
