@@ -11,7 +11,7 @@ from . import __version__
 from .applier import AppliedReport, apply
 from .edid import EdidInfo
 from .logger import RunLog
-from .planner import FixPlan, build_plan
+from .planner import SOURCE_LIBRARY, SOURCE_SYSTEM, FixPlan, build_plan
 from .sysprobe import (
     PanelInfo,
     ProbeIssue,
@@ -25,11 +25,11 @@ from .sysprobe import (
 DEFAULT_GAMEVISUAL_DIR: Final = Path(r"C:\ProgramData\ASUS\GameVisual")
 DEFAULT_SPOOL_DIR: Final = Path(r"C:\Windows\System32\spool\drivers\color")
 
-NEXT_STEPS: Final = """接下来请你手动完成（很重要）:
-  1. 断开网络（关 Wi-Fi / 拔网线）
+NEXT_STEPS: Final = """接下来请你手动完成（很重要，不做等于白修）:
+  1. 断开网络（关 Wi-Fi 或拔网线）
   2. 完全关机（不是重启）
-  3. 开机后打开奥创中心 -> GameVisual 查看效果
-提示: 断网是为了防止奥创联网下载官方文件覆盖修复，详见 README。"""
+  3. 重新开机，打开奥创中心 -> GameVisual 查看效果
+提示: 断网是为了防止奥创联网下载官方文件覆盖修复结果，详见 README。"""
 
 # planner 生成的原因是英文，展示层翻译成小白能看懂的说法
 REASON_ZH: Final[dict[str, str]] = {
@@ -46,6 +46,13 @@ DETAIL_ZH: Final[dict[str, str]] = {
     "BaseBoardProduct/SystemProductName not found in registry": "注册表里找不到机型信息",
 }
 
+# 前缀匹配的兜底翻译（detail 里夹带具体路径/异常时仍能看懂）
+_DETAIL_PREFIX_ZH: Final[tuple[tuple[str, str], ...]] = (
+    ("cannot open", "无法读取系统注册表（权限或系统异常）"),
+    ("EDID too short", "读取到的屏幕数据不完整"),
+    ("not running on Windows", "当前系统不是 Windows"),
+)
+
 
 def _reason_zh(reason: str) -> str:
     if reason in REASON_ZH:
@@ -56,7 +63,12 @@ def _reason_zh(reason: str) -> str:
 
 
 def _detail_zh(detail: str) -> str:
-    return DETAIL_ZH.get(detail, detail)
+    if detail in DETAIL_ZH:
+        return DETAIL_ZH[detail]
+    for prefix, zh in _DETAIL_PREFIX_ZH:
+        if detail.startswith(prefix):
+            return f"{zh}: {detail}"
+    return detail
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -114,7 +126,7 @@ def _pick_panel(
     unique_hwids: dict[str, EdidInfo] = {}
     for panel in panels:
         unique_hwids.setdefault(panel.info.hardware_id, panel.info)
-        print(f"发现面板: {panel.pnp_name}  厂商={panel.info.vendor}  硬件ID={panel.info.hardware_id}")
+        print(f"检测到屏幕: {panel.pnp_name}  厂商={panel.info.vendor}  硬件ID={panel.info.hardware_id}")
     if not unique_hwids:
         return None
     if len(unique_hwids) == 1:
@@ -130,13 +142,13 @@ def _pick_panel(
         ]
         if len(matched) == 1:
             hwid, info = matched[0]
-            print(f"ICC 库中存在 {model} 专属文件（硬件 ID {hwid}），自动选用该面板。")
+            print(f"ICC 库中存在 {model} 专属文件（硬件 ID {hwid}），自动选用该屏幕。")
             return info
     ordered = list(unique_hwids.items())
-    print("检测到多个面板，且无法自动判断哪个是笔记本内屏:")
+    print("检测到多块屏幕，且无法自动判断哪块是笔记本内屏:")
     for idx, (_hwid, info) in enumerate(ordered, start=1):
         print(f"  {idx}. 厂商={info.vendor}  硬件ID={info.hardware_id}（产品号 {info.product_code}）")
-    raw = _ask(f"请选笔记本内屏对应的序号 [1-{len(ordered)}，直接回车=1]: ")
+    raw = _ask(f"请选择笔记本内屏对应的序号 [1-{len(ordered)}，直接回车=1]: ")
     choice = int(raw) - 1 if raw.isdigit() and raw != "0" else 0
     return ordered[choice][1]
 
@@ -147,17 +159,20 @@ def _resolve_model(explicit: str | None) -> str | None:
     found = board_product()
     if isinstance(found, ProbeIssue):
         print(f"[检测提示] 机型: {_detail_zh(found.detail)}")
-        manual = _ask("请手动输入机型型号（如 FX507ZM）: ")
+        manual = _ask("未能自动识别机型，请手动输入机型型号（如 FX507ZM）: ")
         return manual or None
-    print(f"机型: {found}")
+    print(f"识别到机型: {found}")
     return found
 
 
 def _print_plan(plan: FixPlan) -> None:
+    if not plan.actions:
+        return  # 空计划由调用方给出针对性说明
     print(f"共 {len(plan.actions)} 项操作:")
     for action in plan.actions:
+        src_label = "工具自带库" if action.src_dir == SOURCE_LIBRARY else "系统已有文件"
         extra = "（同时复制到系统色彩目录）" if action.extra_dst_dir else ""
-        print(f"  复制 {action.src_dir}/{action.src_name}")
+        print(f"  复制 [{src_label}] {action.src_name}")
         print(f"    -> {action.dst_file}{extra}")
         print(f"    原因: {_reason_zh(action.reason)}")
 
@@ -182,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return _run(args, log)
     except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
-        print("程序出现意外错误:", file=sys.stderr)
+        print("程序遇到意外错误，已停止。", file=sys.stderr)
         log.log_exception(sys.exc_info()[1])
         log.set_summary("程序异常终止，请把桌面日志文件发给作者")
         log_path = log.finish()
@@ -190,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         import traceback  # noqa: PLC0415
 
         traceback.print_exc()
-        print("请把上面的报错截图发给作者（邮箱见 README「问题反馈」）。", file=sys.stderr)
+        print("请把上面的报错信息连同桌面日志文件发给作者（邮箱见 README「问题反馈」）。", file=sys.stderr)
         return 1
 
 
@@ -199,7 +214,7 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         args.dry_run, args.ask, args.model, args.panel_hwid
     ))
     print("==== GameVisual 修复工具 v2 ====")
-    print("本工具会自动检测屏幕与机型，并把正确的 ICC 配置复制到奥创目录。")
+    print("本工具会自动检测你的屏幕和机型，并把正确的校色文件（ICC）复制到华硕奥创中心目录。")
     print()
     print("第 1 步 / 共 3 步: 检测屏幕与机型")
     print("-" * 46)
@@ -221,7 +236,8 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     model = _resolve_model(args.model)
     log.log_kv("机型", str(model))
     if model is None:
-        print("缺少机型型号，无法命名配置文件，已退出。")
+        print("未能获取机型型号，无法生成修复计划，已退出。")
+        print("可加参数 --model FX507ZM 手动指定机型后再运行（见 README）。")
         log.set_summary("缺少机型型号")
         log.finish()
         return 1
@@ -229,17 +245,17 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     if expected is None:
         picked = _pick_panel(probes, library_names, model)
         if picked is None:
-            print("未检测到屏幕 EDID，无法继续。")
+            print("未检测到屏幕信息（EDID），无法继续。")
             print("请确认: 本工具要在笔记本本机直接双击运行（不要在远程桌面里跑）。")
             print("仍失败的话，可用 --panel-hwid 手动指定 8 位硬件 ID（见 README）。")
             log.set_summary("未检测到屏幕 EDID，无法继续")
             log.finish()
             return 1
         expected_info = picked
-        print(f"已自动识别目标面板: {expected_info.hardware_id}")
+        print(f"已自动识别笔记本内屏，硬件 ID: {expected_info.hardware_id}")
     else:
         expected_info = EdidInfo(vendor="?", product_code=expected[-4:], hardware_id=expected)
-        print(f"使用手动指定的面板硬件 ID: {expected_info.hardware_id}")
+        print(f"已使用手动指定的屏幕硬件 ID: {expected_info.hardware_id}")
 
     log.log_kv("目标面板硬件ID", expected_info.hardware_id)
     log.log_kv("目标面板产品号", expected_info.product_code)
@@ -264,16 +280,31 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         log.log_kv(f"操作 {idx}", f"{action.src_name} -> {action.dst_file} (原因: {action.reason})")
     if not plan.actions:
         print()
-        print("没有需要复制的文件: 本机已有匹配的配置（或 ICC 库里没有你的面板）。")
-        print("若 GameVisual 仍然不可用:")
-        print("  1. 看仓库 compressed/ 里有没有你机型的压缩包;")
-        print("  2. 或按 README「贡献你的 ICC 文件」一节提交你的面板文件。")
-        log.set_summary("无需修复，已有匹配配置")
+        if plan.panel_covered:
+            print("本机已存在匹配的校色文件（ICC），无需修改。")
+            print("若 GameVisual 仍然不可用，请确认修复后已按提示「断网 -> 关机 -> 开机」。")
+            log.set_summary("无需修复，已有匹配配置")
+            log.finish()
+            return 0
+        print("未能生成修复计划：ICC 库里没有你这个面板的校色文件。")
+        print(f"  检测到的面板：厂商={expected_info.vendor}  硬件ID={expected_info.hardware_id}"
+              f"  产品号={expected_info.product_code}")
+        print()
+        print("工具只能提供库里已有的 ICC，无法凭空生成这个面板的校色文件。")
+        print("解决办法（按推荐顺序）：")
+        print(f"  1. 找一台同型号面板的机器（未换屏），从下面的目录里提取 .icm 文件：")
+        print(f"       {gv_dir}")
+        print(f"       {DEFAULT_SPOOL_DIR}")
+        print("     提取后放进本工具的 color/ 文件夹，重新双击 run_fix.bat 即可。")
+        print("  2. 把提取到的文件提交到 GitHub（Issues 或 PR），帮到同面板的机友：")
+        print("       https://github.com/star-Cosmo/auto-fix-rog-gamevisual-v2")
+        print("  3. 把上面的面板信息连同桌面日志文件发给作者（邮箱见 README），作者帮你找。")
+        log.set_summary("ICC 库里没有该面板的校色文件，需要用户提供")
         log.finish()
-        return 0
+        return 1
     if args.dry_run:
         print()
-        print("试运行结束: 以上为将要执行的操作，本次未修改任何文件。")
+        print("试运行结束：以上是即将执行的操作，本次没有修改任何文件。")
         log.set_summary("试运行结束，未修改任何文件")
         log.finish()
         return 0
@@ -281,7 +312,7 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     if args.ask:
         answer = _ask("确认执行修复? [直接回车=确认，输入 n=取消]: ").lower()
         if answer.startswith("n"):
-            print("已取消，未修改任何文件。")
+            print("已取消，本次没有修改任何文件。")
             log.set_summary("用户手动取消")
             log.finish()
             return 0
@@ -298,7 +329,7 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
             log.set_summary("UAC 提权后在新窗口继续")
             log.finish()
             return 0
-        print("[提示] 未获得授权，尝试直接写入（可能失败）...")
+        print("[提示] 未获得授权，将尝试直接写入（可能因权限不足而失败）...")
         log.log("UAC 提权失败，尝试直接写入")
 
     report: AppliedReport = apply(plan, gv_dir, library_dir, DEFAULT_SPOOL_DIR)
@@ -318,7 +349,7 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     print(f"  修复完成! 已复制 {report.copied} 个文件，跳过 {report.skipped} 个。")
     if report.backup_path is not None:
         print(f"  修改前的完整备份: {report.backup_path}")
-    print(f"  日志文件: {log_path}")
+    print(f"  本次运行日志: {log_path}")
     print("=" * 46)
     print(NEXT_STEPS)
     return 0

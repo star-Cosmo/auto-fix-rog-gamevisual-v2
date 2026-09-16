@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "auto-fix-gamevisual-v2"
-version = "2.1.1"
+version = "2.1.2"
 description = "Repair ASUS Armoury Crate GameVisual after screen replacement by computing the correct EDID-based ICC filename."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -55,9 +55,25 @@ def test_gamut_trio_added_only_when_missing() -> None:
 
 
 def test_no_match_yields_empty_plan() -> None:
-    """Given library without this panel, When planned, Then no actions at all."""
+    """Given library without this panel, When planned, Then no actions and panel not covered."""
     plan = build_plan("FX507ZM", "99999999", "9999", LIBRARY, SYSTEM)
     assert plan.actions == ()
+    assert plan.panel_covered is False
+
+
+def test_empty_plan_with_panel_covered_means_already_fixed() -> None:
+    """Given system already holds every matching profile, When planned, Then empty plan but panel covered."""
+    system_all = [
+        "FX507ZM_10DE_E5090B74.icm",
+        "FX507ZM_8086_E5090B74.icm",
+        "FX507ZM_8086_E5090B74_CMDEF.icm",
+        "ASUS_DCIP3.icm",
+        "ASUS_DisplayP3.icm",
+        "ASUS_sRGB.icm",
+    ]
+    plan = build_plan("FX507ZM", "E5090B74", "0B74", LIBRARY, system_all)
+    assert plan.actions == ()
+    assert plan.panel_covered is True
 
 
 def test_shapes_without_gpu_segment_are_ignored() -> None:

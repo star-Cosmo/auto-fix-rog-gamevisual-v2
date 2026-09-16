@@ -48,9 +48,16 @@ class CopyAction:
 
 @dataclass(frozen=True, slots=True)
 class FixPlan:
-    """Ordered actions; empty means nothing to do."""
+    """Ordered actions; empty means nothing to do.
+
+    ``panel_covered`` is True when the library or system already holds a
+    profile for this panel — so an empty plan then means "already fixed",
+    while an empty plan with ``panel_covered=False`` means "library lacks
+    this panel and we cannot invent a profile".
+    """
 
     actions: tuple[CopyAction, ...]
+    panel_covered: bool = False
 
 
 def parse_icm(name: str) -> IcmName | None:
@@ -155,4 +162,4 @@ def build_plan(
                     )
                 )
 
-    return FixPlan(actions=tuple(actions))
+    return FixPlan(actions=tuple(actions), panel_covered=matched_any)
