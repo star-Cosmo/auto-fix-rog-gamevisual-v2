@@ -199,13 +199,13 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
         print("程序遇到意外错误，已停止。", file=sys.stderr)
         log.log_exception(sys.exc_info()[1])
-        log.set_summary("程序异常终止，请把桌面日志文件发给作者")
+        log.set_summary("程序异常终止，请把桌面日志发给 star（chenbin2004sz@163.com）")
         log_path = log.finish()
         print(f"（详细日志已保存到 {log_path}）", file=sys.stderr)
         import traceback  # noqa: PLC0415
 
         traceback.print_exc()
-        print("请把上面的报错信息连同桌面日志文件发给作者（邮箱见 README「问题反馈」）。", file=sys.stderr)
+        print("请把上面的报错信息连同桌面日志发给 star（chenbin2004sz@163.com），可以远程协助。", file=sys.stderr)
         return 1
 
 
@@ -298,8 +298,8 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         print("     提取后放进本工具的 color/ 文件夹，重新双击 run_fix.bat 即可。")
         print("  2. 把提取到的文件提交到 GitHub（Issues 或 PR），帮到同面板的机友：")
         print("       https://github.com/star-Cosmo/auto-fix-rog-gamevisual-v2")
-        print("  3. 把上面的面板信息连同桌面日志文件发给作者（邮箱见 README），作者帮你找。")
-        log.set_summary("ICC 库里没有该面板的校色文件，需要用户提供")
+        print("  3. 把上面的面板信息连同桌面日志发给 star（chenbin2004sz@163.com），可以远程协助。")
+        log.set_summary("ICC 库里没有该面板的校色文件，发邮件给 star 可远程协助")
         log.finish()
         return 1
     if args.dry_run:
@@ -352,4 +352,7 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     print(f"  本次运行日志: {log_path}")
     print("=" * 46)
     print(NEXT_STEPS)
+    print()
+    print("如果你的原装屏没有换过，或者手上有原装屏的 ICC 校色文件，")
+    print("欢迎打包发到 chenbin2004sz@163.com，附上机型名称即可，帮助更多同面板的机友。")
     return 0
