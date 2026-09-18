@@ -298,8 +298,9 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         print("     提取后放进本工具的 color/ 文件夹，重新双击 run_fix.bat 即可。")
         print("  2. 把提取到的文件提交到 GitHub（Issues 或 PR），帮到同面板的机友：")
         print("       https://github.com/star-Cosmo/auto-fix-rog-gamevisual-v2")
-        print("  3. 把上面的面板信息连同桌面日志发给 star（chenbin2004sz@163.com），可以远程协助。")
-        log.set_summary("ICC 库里没有该面板的校色文件，发邮件给 star 可远程协助")
+        print("  3. 去网上找用同款机型或同型号屏幕的朋友，让他帮你提取 ICC 文件，")
+        print("     提取后发到 chenbin2004sz@163.com，我们会第一时间更新 ICC 库。")
+        log.set_summary("ICC 库里没有该面板的校色文件，需找同款机型朋友提供")
         log.finish()
         return 1
     if args.dry_run:
