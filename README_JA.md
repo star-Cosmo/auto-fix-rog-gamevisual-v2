@@ -1,5 +1,7 @@
 # Auto Fix GameVisual v2
 
+![ダウンロード](https://img.shields.io/github/downloads/star-Cosmo/auto-fix-rog-gamevisual-v2/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=brightgreen)
+
 [简体中文](README.md) | [English](README_EN.md) | **日本語**
 
 ASUS / ROG / TUF ノートPCで**画面交換後に Armoury Crate の GameVisual カラーモードが使えなくなる**問題を修復するツールです。

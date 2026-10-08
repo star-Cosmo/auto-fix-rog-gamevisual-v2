@@ -1,5 +1,7 @@
 # Auto Fix GameVisual v2
 
+![Downloads](https://img.shields.io/github/downloads/star-Cosmo/auto-fix-rog-gamevisual-v2/total?label=Downloads&color=brightgreen)
+
 [简体中文](README.md) | **English** | [日本語](README_JA.md)
 
 A tool that fixes **GameVisual color modes becoming unavailable in ASUS Armoury Crate after a screen replacement** on ASUS / ROG / TUF laptops.

@@ -1,5 +1,7 @@
 # Auto Fix GameVisual v2
 
+![下载量](https://img.shields.io/github/downloads/star-Cosmo/auto-fix-rog-gamevisual-v2/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F&color=brightgreen)
+
 **简体中文** | [English](README_EN.md) | [日本語](README_JA.md)
 
 修复华硕/ROG 机型**更换屏幕后，奥创中心（Armoury Crate）GameVisual 色彩模式失效**的工具。
@@ -98,6 +100,23 @@ flowchart LR
   <img src="docs/images/console-panels.png" width="720" alt="多面板检测选择界面">
 </p>
 
+**如果你的面板不在内置 ICC 库里**（v2.1.5 起支持）：工具会自动引导你，只需输入数字——
+
+- 输入 `1`：用内置构造器，根据屏幕硬件报告的色彩数据实时生成校色文件并修复
+- 输入 `2`：暂不修复，等 ICC 库更新（可把屏幕信息发到 `chenbin2004sz@163.com` 优先补齐）
+
+<p align="center">
+  <img src="docs/images/console-missing.png" width="720" alt="ICC 库缺面板时的选择界面">
+</p>
+
+选 `1` 后会展示免责声明，确认后自动生成并应用校色文件：
+
+<p align="center">
+  <img src="docs/images/console-disclaimer.png" width="720" alt="生成校色文件前的免责声明与完成提示">
+</p>
+
+> 生成的是基于屏幕 EDID 的**近似**校色文件（非官方出厂校色）。效果不满意？运行解压目录里的 `uninstall_fix.bat` 一键还原，详见下方「卸载与还原」。
+
 ### 第 3 步：断网 → 关机 → 开机（不做等于白修！）
 
 修复完成后程序会提醒你，照做：
@@ -168,6 +187,20 @@ ICC 库（`color/`）是社区共享的（**开放自取**），`compressed/` �
 2. **暂不修复**：等 ICC 库更新（把屏幕信息发到 `chenbin2004sz@163.com`，我们会优先补齐）。
 
 > 用了构造器之后觉得效果不理想？双击解压目录里的 `uninstall_fix.bat`，一键删除本次生成的文件并恢复修复前的备份。
+
+## 卸载与还原
+
+任何一次修复都可以随时**完整还原**——双击解压目录里的 `uninstall_fix.bat`：
+
+1. 自动请求管理员权限（弹出 UAC 点「是」）
+2. 自动找到最新的 `C:\ProgramData\ASUS\GameVisual_backup_时间戳\` 备份
+3. 删除修复放入的文件，并从备份完整恢复原来的 GameVisual 配置
+
+<p align="center">
+  <img src="docs/images/console-uninstall.png" width="720" alt="卸载/还原脚本运行界面">
+</p>
+
+> 还原后同样建议「断网 → 关机 → 开机」再打开奥创查看。备份目录默认保留，如需彻底清理可手动删除。
 
 ## 贡献你的 ICC 文件（欢迎！）
 
