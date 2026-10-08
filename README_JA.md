@@ -148,8 +148,8 @@ auto-fix-gamevisual-v2/
 │   ├── applier.py           #   プラン実行：まず完全バックアップ、その後コピー
 │   ├── cli.py               #   対話 UI：中国語表示、引数解析、スマートパネル選択
 │   └── __main__.py          #   python -m gamevisual_fixer 入口
-├── color/                   # コミュニティ ICC ライブラリ：63 ファイル、自由に取得可・貢献歓迎
-├── compressed/              # 機種別 ICC アーカイブ（17 機種）
+├── color/                   # コミュニティ ICC ライブラリ：301 ファイル、自由に取得可・貢献歓迎
+├── compressed/              # 機種別 ICC アーカイブ（16 機種）
 ├── tests/                   # pytest 単体テスト（EDID 数式 / プラン生成 / パネル選択）
 ├── docs/images/             # README 用のスクリーンショットと図
 └── .github/                 # 行動規範 / 貢献ガイド / セキュリティ / Issue・PR テンプレート

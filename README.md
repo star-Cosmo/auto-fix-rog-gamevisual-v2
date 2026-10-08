@@ -170,8 +170,8 @@ auto-fix-gamevisual-v2/
 │   ├── logger.py            #   运行日志：桌面留档，一次运行一份，排障可回传
 │   ├── cli.py               #   交互界面：全中文提示、参数解析、智能选屏
 │   └── __main__.py          #   python -m gamevisual_fixer 入口
-├── color/                   # 社区共享 ICC 库：63 个文件，开放自取、欢迎贡献
-├── compressed/              # 按机型打包的 ICC 压缩包（17 个机型）
+├── color/                   # 社区共享 ICC 库：301 个文件，开放自取、欢迎贡献
+├── compressed/              # 按机型打包的 ICC 压缩包（16 个机型）
 ├── tests/                   # pytest 单元测试（EDID 公式 / 计划生成 / 面板选择）
 ├── docs/images/             # README 用的截图与示意图
 └── .github/                 # 行为准则 / 贡献指南 / 安全政策 / Issue 与 PR 模板

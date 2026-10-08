@@ -148,8 +148,8 @@ auto-fix-gamevisual-v2/
 │   ├── applier.py           #   executes the plan: full backup first, then copy
 │   ├── cli.py               #   interaction: Chinese UI, arg parsing, smart panel picking
 │   └── __main__.py          #   python -m gamevisual_fixer entry
-├── color/                   # community ICC library: 63 files, free to take, contributions welcome
-├── compressed/              # per-model ICC archives (17 models)
+├── color/                   # community ICC library: 301 files, free to take, contributions welcome
+├── compressed/              # per-model ICC archives (16 models)
 ├── tests/                   # pytest unit tests (EDID formula / plan building / panel picking)
 ├── docs/images/             # screenshots & diagrams used by the READMEs
 └── .github/                 # code of conduct / contributing / security / issue & PR templates
