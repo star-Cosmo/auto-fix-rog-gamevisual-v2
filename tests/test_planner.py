@@ -1,6 +1,6 @@
 """Unit tests for plan building — pure filename lists, no filesystem."""
 
-from gamevisual_fixer.planner import build_plan
+from gamevisual_fixer.planner import SOURCE_GENERATED, build_generated_plan, build_plan
 
 LIBRARY = [
     "GU604VY_10DE_E5090B74.icm",
@@ -87,3 +87,19 @@ def test_shapes_without_gpu_segment_are_ignored() -> None:
     )
     for action in plan.actions:
         assert action.reason != ""
+
+
+def test_generated_plan_names_file_correctly() -> None:
+    """Given model/hwid/gpu, When building a generated plan, Then the dst file is Model_Gpu_Hwid.icm."""
+    plan = build_generated_plan("FX507ZM", "770E150F", "10DE")
+    assert len(plan.actions) == 1
+    action = plan.actions[0]
+    assert action.dst_file == "FX507ZM_10DE_770E150F.icm"
+    assert action.src_dir == SOURCE_GENERATED
+    assert plan.panel_covered is True
+
+
+def test_generated_plan_skips_when_file_exists() -> None:
+    """Given the target file already on the system, When planning generation, Then no action."""
+    plan = build_generated_plan("FX507ZM", "770E150F", "10DE", ["FX507ZM_10DE_770E150F.icm"])
+    assert plan.actions == ()

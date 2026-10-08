@@ -11,7 +11,13 @@ from . import __version__
 from .applier import AppliedReport, apply
 from .edid import EdidInfo
 from .logger import RunLog
-from .planner import SOURCE_LIBRARY, SOURCE_SYSTEM, FixPlan, build_plan
+from .planner import (
+    SOURCE_LIBRARY,
+    SOURCE_SYSTEM,
+    FixPlan,
+    build_generated_plan,
+    build_plan,
+)
 from .sysprobe import (
     PanelInfo,
     ProbeIssue,
@@ -30,6 +36,22 @@ NEXT_STEPS: Final = """接下来请你手动完成（很重要，不做等于白
   2. 完全关机（不是重启）
   3. 重新开机，打开奥创中心 -> GameVisual 查看效果
 提示: 断网是为了防止奥创联网下载官方文件覆盖修复结果，详见 README。"""
+
+# ICC 文件名里的 GPU 段（PCI vendor id 大写十六进制，奥创只认这三个）
+_GPU_SEGMENTS_PREFERENCE: Final = ("10DE", "8086", "1002")
+
+
+def _detect_gpu_segment(system_names: list[str]) -> str:
+    """Best-effort GPU segment for the generated ICC filename.
+
+    Prefers a segment already present in the host GameVisual dir (the
+    system's real GPU files), then falls back to NVIDIA/Intel/AMD in order.
+    """
+    for name in system_names:
+        parts = name[:-4].split("_") if name.lower().endswith(".icm") else []
+        if len(parts) >= 3 and parts[1] in _GPU_SEGMENTS_PREFERENCE:
+            return parts[1]
+    return _GPU_SEGMENTS_PREFERENCE[0]
 
 # planner 生成的原因是英文，展示层翻译成小白能看懂的说法
 REASON_ZH: Final[dict[str, str]] = {
@@ -287,22 +309,103 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
             log.finish()
             return 0
         print("未能生成修复计划：ICC 库里没有你这个面板的校色文件。")
-        print(f"  检测到的面板：厂商={expected_info.vendor}  硬件ID={expected_info.hardware_id}"
+        print(f"  检测到的屏幕：厂商={expected_info.vendor}  硬件ID={expected_info.hardware_id}"
               f"  产品号={expected_info.product_code}")
         print()
-        print("工具只能提供库里已有的 ICC，无法凭空生成这个面板的校色文件。")
-        print("解决办法（按推荐顺序）：")
-        print(f"  1. 找一台同型号面板的机器（未换屏），从下面的目录里提取 .icm 文件：")
-        print(f"       {gv_dir}")
-        print(f"       {DEFAULT_SPOOL_DIR}")
-        print("     提取后放进本工具的 color/ 文件夹，重新双击 run_fix.bat 即可。")
-        print("  2. 把提取到的文件提交到 GitHub（Issues 或 PR），帮到同面板的机友：")
-        print("       https://github.com/star-Cosmo/auto-fix-rog-gamevisual-v2")
-        print("  3. 去网上找用同款机型或同型号屏幕的朋友，让他帮你提取 ICC 文件，")
-        print("     提取后发到 chenbin2004sz@163.com，我们会第一时间更新 ICC 库。")
-        log.set_summary("ICC 库里没有该面板的校色文件，需找同款机型朋友提供")
-        log.finish()
-        return 1
+        print("工具内置了一个校色文件构造器：")
+        print("  根据屏幕硬件报告的色彩数据（色域/白点/伽马）实时生成一个可用的校色文件，")
+        print("  让 GameVisual 能识别并启用全部色彩模式。")
+        print()
+        print("请选择（只需输入数字后回车）:")
+        print("  1. 立即用内置构造器生成校色文件并修复")
+        print("  2. 暂不修复（ICC 库更新后会包含你的面板，敬请期待）")
+        choice = _ask("请输入 [1 或 2，直接回车=1]: ").strip()
+        if choice == "2":
+            print()
+            print("已跳过本次修复。")
+            print("你可以把屏幕信息发到 chenbin2004sz@163.com，我们会尽快补充这个面板的校色文件。")
+            log.set_summary("用户选择暂不修复，等待 ICC 库更新")
+            log.finish()
+            return 0
+        # 选择 1：生成构造。需要 EDID 色度数据。
+        chromaticity = expected_info.chromaticity
+        if chromaticity is None:
+            print()
+            print("未读取到这个屏幕的色彩数据（EDID），无法生成校色文件。")
+            print("请把屏幕信息发到 chenbin2004sz@163.com，我们可以为你定制。")
+            log.set_summary("EDID 缺少色彩数据，无法生成 ICC")
+            log.finish()
+            return 1
+        print()
+        print("=" * 46)
+        print("  免责声明（请仔细阅读）")
+        print("=" * 46)
+        print("  1. 生成的校色文件基于屏幕硬件报告的色彩数据构造，")
+        print("     能让 GameVisual 识别并启用色彩模式，但非官方出厂校色，")
+        print("     显示效果可能与原厂略有差异。")
+        print("  2. 本工具会先完整备份原 GameVisual 配置，随时可一键还原。")
+        print("  3. 不满意时运行 uninstall_fix.bat 即可完整卸载本次修复。")
+        print()
+        gpu_seg = _detect_gpu_segment(system_names)
+        gen_plan = build_generated_plan(
+            model, expected_info.hardware_id, gpu_seg, system_names
+        )
+        if not gen_plan.actions:
+            print(f"目标文件 {model}_{gpu_seg}_{expected_info.hardware_id}.icm 已存在，无需生成。")
+            log.set_summary("目标校色文件已存在")
+            log.finish()
+            return 0
+        log.log_section("生成校色文件（EDID 构造）")
+        log.log_kv("目标文件", gen_plan.actions[0].dst_file)
+        log.log_kv("构造数据源", "EDID 色度块（色域/白点/伽马）")
+        if args.dry_run:
+            print()
+            print("试运行结束：本可生成校色文件，本次没有修改任何文件。")
+            log.set_summary("试运行结束（将生成校色文件）")
+            log.finish()
+            return 0
+        if args.ask:
+            answer = _ask("确认生成并应用? [直接回车=确认，输入 n=取消]: ").lower()
+            if answer.startswith("n"):
+                print("已取消，本次没有修改任何文件。")
+                log.set_summary("用户手动取消")
+                log.finish()
+                return 0
+        print()
+        print("第 3 步 / 共 3 步: 生成并应用校色文件（无需你操作）")
+        print("-" * 46)
+        if not is_admin():
+            print("需要管理员权限: 正在弹出 UAC 窗口，请在弹窗中点「是」。")
+            log.log("请求管理员权限 (UAC 提权)")
+            if try_elevate([*sys.argv[1:], "--yes"] if args.yes else [*sys.argv[1:]]):
+                print("已在新窗口继续修复，本窗口可以直接关闭。")
+                log.set_summary("UAC 提权后在新窗口继续")
+                log.finish()
+                return 0
+            print("[提示] 未获得授权，将尝试直接写入（可能因权限不足而失败）...")
+            log.log("UAC 提权失败，尝试直接写入")
+        report = apply(gen_plan, gv_dir, library_dir, DEFAULT_SPOOL_DIR, chromaticity=chromaticity)
+        log.log_kv("生成并复制文件数", str(report.copied))
+        log.log_kv("跳过数（已存在）", str(report.skipped))
+        if report.backup_path is not None:
+            log.log_kv("备份路径", str(report.backup_path))
+        log.set_summary("已生成校色文件并应用，等待用户观察效果")
+        log_path = log.finish()
+        print()
+        print("=" * 46)
+        print("  已生成校色文件并应用! 请按「断网 -> 关机 -> 开机」观察效果。")
+        print("  生成的文件: " + gen_plan.actions[0].dst_file)
+        print("  本次运行日志: " + str(log_path))
+        print("=" * 46)
+        print()
+        print("请观察几天：")
+        print("  - 效果满意：无需任何操作，正式使用即可。")
+        print("  - 效果不达预期 / 出现异常：运行解压目录里的 uninstall_fix.bat 一键还原，")
+        print("    会删除本次生成的文件并恢复修复前的备份。")
+        print()
+        print("如果观察后仍不理想，或你有原装屏的校色文件，都欢迎发到 chenbin2004sz@163.com，")
+        print("我们会优先补齐这个面板的官方校色文件。")
+        return 0
     if args.dry_run:
         print()
         print("试运行结束：以上是即将执行的操作，本次没有修改任何文件。")

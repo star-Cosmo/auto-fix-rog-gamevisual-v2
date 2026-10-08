@@ -21,6 +21,7 @@ GAMUT_FILES: Final[tuple[str, ...]] = (
 
 SOURCE_LIBRARY: Final = "library"
 SOURCE_SYSTEM: Final = "system"
+SOURCE_GENERATED: Final = "generated"
 EXTRA_SPOOL: Final = "spool"
 
 
@@ -163,3 +164,32 @@ def build_plan(
                 )
 
     return FixPlan(actions=tuple(actions), panel_covered=matched_any)
+
+
+def build_generated_plan(
+    model: str,
+    hardware_id: str,
+    gpu_segment: str,
+    system_names: list[str] | None = None,
+) -> FixPlan:
+    """Build a fallback plan that *generates* a synthetic ICC for the panel.
+
+    Used when the library has no profile for this panel: the applier can
+    create a minimal valid ICC from the EDID chromaticity, named exactly
+    ``Model_Gpu_HardwareId.icm`` so Armoury Crate's filename-based lookup
+    finds it. The panel is considered covered (a profile will exist).
+    """
+    system_names = system_names or []
+    dst_file = f"{model}_{gpu_segment}_{hardware_id}.icm"
+    actions = []
+    if dst_file not in system_names:
+        actions.append(
+            CopyAction(
+                src_name="",
+                src_dir=SOURCE_GENERATED,
+                dst_file=dst_file,
+                extra_dst_dir=None,
+                reason="generate synthetic ICC from EDID chromaticity",
+            )
+        )
+    return FixPlan(actions=tuple(actions), panel_covered=True)

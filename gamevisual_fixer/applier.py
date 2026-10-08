@@ -7,7 +7,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .planner import SOURCE_LIBRARY, SOURCE_SYSTEM, FixPlan
+from .edid import Chromaticity
+from .iccgen import build_icc
+from .planner import (
+    SOURCE_GENERATED,
+    SOURCE_LIBRARY,
+    SOURCE_SYSTEM,
+    FixPlan,
+)
 
 
 class ApplyError(Exception):
@@ -44,8 +51,14 @@ def apply(
     spool_dir: Path,
     *,
     create_backup: bool = True,
+    chromaticity: Chromaticity | None = None,
 ) -> AppliedReport:
-    """Copy every planned file; skip actions whose destination already exists."""
+    """Copy every planned file; skip actions whose destination already exists.
+
+    ``chromaticity`` is required only when the plan contains actions with
+    ``src_dir == SOURCE_GENERATED`` — those ICC files are synthesised at
+    apply time straight into the GameVisual directory.
+    """
     gv_dir.mkdir(parents=True, exist_ok=True)
     backup_path: Path | None = None
     if create_backup:
@@ -57,6 +70,16 @@ def apply(
         dst = gv_dir / action.dst_file
         if dst.exists():
             skipped += 1
+            continue
+        if action.src_dir == SOURCE_GENERATED:
+            if chromaticity is None:
+                raise ApplyError(
+                    "plan contains a generated ICC action but no chromaticity was provided"
+                )
+            src = None  # generated: bytes come from build_icc
+            icc_bytes = build_icc(chromaticity)
+            dst.write_bytes(icc_bytes)
+            copied += 1
             continue
         src_root = {SOURCE_LIBRARY: library_dir, SOURCE_SYSTEM: gv_dir}[action.src_dir]
         src = src_root / action.src_name
