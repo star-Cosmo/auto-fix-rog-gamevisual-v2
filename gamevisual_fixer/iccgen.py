@@ -87,8 +87,10 @@ def _solve3x3(
 
 
 def _valid_xy(p: tuple[float, float]) -> bool:
-    """A sane chromaticity coordinate: strictly inside the 0..1 square, x+y<1."""
-    return 0.0 < p[0] < 1.0 and 0.0 < p[1] < 1.0 and p[0] + p[1] < 1.0
+    """A sane chromaticity coordinate: strictly inside the 0..1 square,
+    x+y <= 1 (boundary allowed — pure spectral colours like P3 red have
+    z=0 and x+y==1.0 exactly)."""
+    return 0.0 < p[0] < 1.0 and 0.0 < p[1] < 1.0 and p[0] + p[1] <= 1.0 + 1e-9
 
 
 # sRGB primaries + D65 white — the safe fallback for corrupt/absent EDID data.
