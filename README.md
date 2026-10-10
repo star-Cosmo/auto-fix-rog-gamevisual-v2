@@ -1,6 +1,6 @@
 # Auto Fix GameVisual v2
 
-![下载量](https://img.shields.io/github/downloads/star-Cosmo/auto-fix-rog-gamevisual-v2/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F&color=brightgreen)
+![总下载量](https://img.shields.io/github/downloads/star-Cosmo/auto-fix-rog-gamevisual-v2/total?label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F&color=brightgreen)
 
 **简体中文** | [English](README_EN.md) | [日本語](README_JA.md)
 
@@ -8,7 +8,7 @@
 
 一键运行，自动完成一切：没有 Python 环境？自动弹窗询问并下载便携版安装。检测屏幕 EDID、计算正确文件名、备份并修复 ICC 配置文件，全程无需管理员权限手动操作。
 
-## 📈 项目热度
+## 📈 已帮助过的用户累计
 
 下载量随每次发版持续累积，曲线每日自动更新：
 

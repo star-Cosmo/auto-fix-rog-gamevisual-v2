@@ -102,10 +102,12 @@ def render_svg(history: dict) -> str:
         return pad_top + plot_h * (1 - value / max_value)
 
     parts: list[str] = []
+    parts.append('<?xml version="1.0" encoding="UTF-8"?>')
     parts.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" '
-        f'font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+        f'font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,'
+        f'Microsoft YaHei,PingFang SC,Noto Sans CJK SC,sans-serif">'
     )
     parts.append(f'<rect width="{width}" height="{height}" fill="#ffffff"/>')
 
@@ -166,7 +168,7 @@ def render_svg(history: dict) -> str:
     # Title
     parts.append(
         f'<text x="{pad_left}" y="24" font-size="15" font-weight="600" fill="#111827">'
-        f'Total downloads: {totals[-1]}</text>'
+        f'已帮助过的用户累计: {totals[-1]}</text>'
     )
     parts.append("</svg>")
     return "\n".join(parts)
