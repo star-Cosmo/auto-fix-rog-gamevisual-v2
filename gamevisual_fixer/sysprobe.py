@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Final
 
 from .edid import EdidError, EdidInfo, parse_edid
+from .logger import detail, trace
 
 _ENUM_DISPLAY: Final = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
 _SYSTEM_INFO_KEY: Final = r"SYSTEM\CurrentControlSet\Control\SystemInformation"
@@ -50,6 +51,7 @@ def list_panels() -> list[PanelInfo | ProbeIssue]:
     if not is_windows():
         return [ProbeIssue(source="panels", detail="not running on Windows")]
     import winreg  # noqa: PLC0415 — stdlib import kept local for cross-platform import
+    trace(f"枚举注册表 {_ENUM_DISPLAY}")
 
     results: list[PanelInfo | ProbeIssue] = []
     seen_pnp: set[str] = set()
@@ -96,8 +98,14 @@ def _read_panel_edid(pnp_name: str) -> PanelInfo | ProbeIssue:
             if raw is None:
                 continue
             try:
-                return PanelInfo(pnp_name=pnp_name, info=parse_edid(raw))
+                info = parse_edid(raw)
+                trace(
+                    f"{pnp_name}: EDID {len(raw)} 字节 -> 硬件ID {info.hardware_id}"
+                    f"（厂商 {info.vendor} 产品号 {info.product_code}）"
+                )
+                return PanelInfo(pnp_name=pnp_name, info=info)
             except EdidError as exc:
+                trace(f"{pnp_name}: EDID 原始字节 {raw.hex(' ')}")
                 return ProbeIssue(source=pnp_name, detail=exc.detail)
     return ProbeIssue(source=pnp_name, detail="no instance exposes an EDID value")
 
@@ -109,7 +117,11 @@ def _query_binary(key_path: str, value_name: str) -> bytes | None:
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
             value, value_type = winreg.QueryValueEx(key, value_name)
-    except OSError:
+    except OSError as exc:
+        if isinstance(exc, FileNotFoundError):
+            trace(f"注册表值不存在: {key_path}\\{value_name}")
+        else:
+            detail(f"读取注册表失败: {key_path}\\{value_name}: {exc}")
         return None
     if value_type != winreg.REG_BINARY or not isinstance(value, bytes):
         return None
@@ -123,7 +135,11 @@ def _query_str(key_path: str, value_name: str) -> str | None:
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
             value, value_type = winreg.QueryValueEx(key, value_name)
-    except OSError:
+    except OSError as exc:
+        if isinstance(exc, FileNotFoundError):
+            trace(f"注册表值不存在: {key_path}\\{value_name}")
+        else:
+            detail(f"读取注册表失败: {key_path}\\{value_name}: {exc}")
         return None
     if value_type != winreg.REG_SZ or not isinstance(value, str) or not value.strip():
         return None
@@ -151,6 +167,7 @@ def board_product() -> str | ProbeIssue:
         raw = _query_str(path, name) if is_windows() else None
         if raw is None:
             continue
+        trace(f"注册表 {name}: {raw!r}")
         extracted = _extract_model(raw)
         if extracted is not None:
             return extracted

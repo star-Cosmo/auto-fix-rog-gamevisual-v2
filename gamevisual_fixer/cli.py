@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Final
@@ -10,7 +12,7 @@ from typing import Final
 from . import __version__
 from .applier import AppliedReport, apply
 from .edid import EdidInfo
-from .logger import RunLog
+from .logger import RunLog, activate, deactivate
 from .planner import (
     SOURCE_LIBRARY,
     SOURCE_SYSTEM,
@@ -113,6 +115,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="覆盖 GameVisual 目录（高级/测试用）",
     )
     parser.add_argument("--elevated", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--debug", action="store_true", help="记录详细调试信息到日志（排障用）")
     parser.add_argument("--version", action="version", version=__version__)
     return parser.parse_args(argv)
 
@@ -127,6 +130,38 @@ def _ask(prompt: str) -> str:
         return input(prompt).strip()
     except (EOFError, KeyboardInterrupt, OSError):
         return ""
+
+
+def _open_device_manager() -> bool:
+    """Open Device Manager (devmgmt.msc); True on success.
+
+    Device Manager has no CLI switch to auto-navigate to a device's
+    hardware-ID page, so we just launch it and print the click-path for
+    the user instead.
+    """
+    try:
+        subprocess.Popen(["mmc.exe", "devmgmt.msc"])
+        return True
+    except OSError:
+        return False
+
+
+def _offer_device_manager(log: RunLog) -> None:
+    """Ask up front whether to open Device Manager so the user can see their panel ID."""
+    print("是否需要打开「设备管理器」，查看你屏幕的硬件 ID？")
+    print("  打开后：展开「监视器」→ 右键你的屏幕 → 属性 → 详细信息 → 属性选「硬件 ID」")
+    raw = _ask("输入 1 打开设备管理器，输入 2 直接开始自动修复 [直接回车=2]: ").strip()
+    if raw == "1":
+        if _open_device_manager():
+            log.log_kv("设备管理器", "已为用户打开")
+            print("设备管理器已打开。查看完硬件 ID 后，回到本窗口按回车继续...")
+        else:
+            log.log_kv("设备管理器", "打开失败，提示用户手动运行 devmgmt.msc")
+            print("[提示] 未能自动打开设备管理器，可手动运行 devmgmt.msc。按回车继续...")
+        _ask("")
+    else:
+        log.log_kv("设备管理器", "用户跳过")
+    print()
 
 
 def _pick_panel(
@@ -207,15 +242,30 @@ def _ensure_console_output() -> None:
             stream.reconfigure(errors="replace")
 
 
+def _child_log_target(args: argparse.Namespace) -> Path | None:
+    """Return the parent's log path when running as the elevated child."""
+    if not args.elevated:
+        return None
+    env = os.environ.get("GVFIX_LOG_FILE")
+    if not env:
+        return None
+    path = Path(env)
+    return path if path.exists() else None
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point; returns process exit code."""
     _ensure_console_output()
     if not is_windows():
         print("本工具只能在 Windows 上运行。")
         return 2
-    log = RunLog()
-    log.log("GameVisual 修复工具 v2 启动")
     args = _parse_args(sys.argv[1:] if argv is None else argv)
+    append_to = _child_log_target(args)
+    log = RunLog(debug=args.debug, append_to=append_to)
+    log.log("GameVisual 修复工具 v2 启动")
+    if append_to is not None:
+        log.log("（管理员进程已接管父进程日志，以下为提权后记录）")
+    activate(log)
     try:
         return _run(args, log)
     except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
@@ -229,15 +279,20 @@ def main(argv: list[str] | None = None) -> int:
         traceback.print_exc()
         print("请把上面的报错信息连同桌面日志发给 star（chenbin2004sz@163.com），可以远程协助。", file=sys.stderr)
         return 1
+    finally:
+        deactivate()
 
 
 def _run(args: argparse.Namespace, log: RunLog) -> int:
     log.log("参数: dry_run={}, ask={}, model={}, panel_hwid={}".format(
         args.dry_run, args.ask, args.model, args.panel_hwid
     ))
+    log.log_kv("进程 PID", str(os.getpid()))
+    log.log_kv("管理员权限", "是" if is_admin() else "否")
     print("==== GameVisual 修复工具 v2 ====")
     print("本工具会自动检测你的屏幕和机型，并把正确的校色文件（ICC）复制到华硕奥创中心目录。")
     print()
+    _offer_device_manager(log)
     print("第 1 步 / 共 3 步: 检测屏幕与机型")
     print("-" * 46)
     probes = list_panels()
@@ -300,6 +355,14 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     log.log_kv("计划操作数", str(len(plan.actions)))
     for idx, action in enumerate(plan.actions, 1):
         log.log_kv(f"操作 {idx}", f"{action.src_name} -> {action.dst_file} (原因: {action.reason})")
+    if plan.rejections:
+        log.log_kv("未匹配候选数", str(len(plan.rejections)))
+        for rej in plan.rejections[:15]:
+            log.detail(f"未匹配: {rej}")
+        if len(plan.rejections) > 15:
+            log.detail(f"... 其余 {len(plan.rejections) - 15} 条见 --debug 日志")
+            for rej in plan.rejections[15:]:
+                log.trace(f"未匹配: {rej}")
     if not plan.actions:
         print()
         if plan.panel_covered:
@@ -377,10 +440,10 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         if not is_admin():
             print("需要管理员权限: 正在弹出 UAC 窗口，请在弹窗中点「是」。")
             log.log("请求管理员权限 (UAC 提权)")
+            os.environ["GVFIX_LOG_FILE"] = str(log.path)
+            log.flush()
             if try_elevate([*sys.argv[1:], "--yes"] if args.yes else [*sys.argv[1:]]):
                 print("已在新窗口继续修复，本窗口可以直接关闭。")
-                log.set_summary("UAC 提权后在新窗口继续")
-                log.finish()
                 return 0
             print("[提示] 未获得授权，将尝试直接写入（可能因权限不足而失败）...")
             log.log("UAC 提权失败，尝试直接写入")
@@ -428,10 +491,10 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     if not is_admin():
         print("需要管理员权限: 正在弹出 UAC 窗口，请在弹窗中点「是」。")
         log.log("请求管理员权限 (UAC 提权)")
+        os.environ["GVFIX_LOG_FILE"] = str(log.path)
+        log.flush()
         if try_elevate([*sys.argv[1:], "--yes"] if args.yes else [*sys.argv[1:]]):
             print("已在新窗口继续修复，本窗口可以直接关闭。")
-            log.set_summary("UAC 提权后在新窗口继续")
-            log.finish()
             return 0
         print("[提示] 未获得授权，将尝试直接写入（可能因权限不足而失败）...")
         log.log("UAC 提权失败，尝试直接写入")

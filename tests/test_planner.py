@@ -61,6 +61,30 @@ def test_no_match_yields_empty_plan() -> None:
     assert plan.panel_covered is False
 
 
+def test_no_match_records_rejections() -> None:
+    """Given a panel absent from the library, When planned, Then each parsed non-matching candidate is reported."""
+    plan = build_plan("FX507ZM", "99999999", "9999", LIBRARY, SYSTEM)
+    assert plan.rejections
+    # every library candidate whose monitor_part differs is rejected with its name
+    assert any("E5090B74" in r and "monitor_part=" in r for r in plan.rejections)
+    assert any("B8511603" in r for r in plan.rejections)
+
+
+def test_system_model_mismatch_recorded() -> None:
+    """Given a system file for a different model, When planned, Then it is recorded as a rejection."""
+    plan = build_plan("FX507ZM", "770E150F", "150F", [], ["GX650PY_10DE_770E150F.icm"])
+    assert plan.actions == ()
+    assert plan.panel_covered is False
+    assert any("model=" in r and "GX650PY" in r for r in plan.rejections)
+
+
+def test_system_monitor_mismatch_recorded() -> None:
+    """Given a system file whose monitor_part differs, When planned, Then it is recorded as a rejection."""
+    plan = build_plan("FX507ZM", "770E150F", "150F", [], ["FX507ZM_10DE_99999999.icm"])
+    assert plan.actions == ()
+    assert any("monitor_part=" in r and "99999999" in r for r in plan.rejections)
+
+
 def test_empty_plan_with_panel_covered_means_already_fixed() -> None:
     """Given system already holds every matching profile, When planned, Then empty plan but panel covered."""
     system_all = [

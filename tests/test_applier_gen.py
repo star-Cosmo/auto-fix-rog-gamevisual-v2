@@ -52,3 +52,40 @@ def test_apply_generated_requires_chromaticity(tmp_path) -> None:
         raise AssertionError("expected ApplyError")
     except Exception as exc:  # ApplyError
         assert "chromaticity" in str(exc)
+
+
+def test_apply_logs_per_file_details_via_bus(tmp_path) -> None:
+    """Given an active run log, When applying a generated plan, Then per-file details reach the log."""
+    from gamevisual_fixer import logger
+    from gamevisual_fixer.logger import RunLog
+
+    gv = tmp_path / "GameVisual"
+    plan = build_generated_plan("FX507ZM", "770E150F", "10DE")
+    log = RunLog(log_dir=tmp_path)
+    logger.activate(log)
+    try:
+        apply(plan, gv, tmp_path / "lib", tmp_path / "spool", chromaticity=_PANEL)
+    finally:
+        logger.deactivate()
+    text = log.finish().read_text(encoding="utf-8")
+    assert "备份 GameVisual 目录" in text
+    assert "生成: FX507ZM_10DE_770E150F.icm" in text
+
+
+def test_apply_logs_skip_via_bus(tmp_path) -> None:
+    """Given an existing dst, When applying, Then the skip is logged via the bus."""
+    from gamevisual_fixer import logger
+    from gamevisual_fixer.logger import RunLog
+
+    gv = tmp_path / "GameVisual"
+    gv.mkdir(parents=True)
+    (gv / "FX507ZM_10DE_770E150F.icm").write_text("original", encoding="utf-8")
+    plan = build_generated_plan("FX507ZM", "770E150F", "10DE")
+    log = RunLog(log_dir=tmp_path)
+    logger.activate(log)
+    try:
+        apply(plan, gv, tmp_path / "lib", tmp_path / "spool", chromaticity=_PANEL)
+    finally:
+        logger.deactivate()
+    text = log.finish().read_text(encoding="utf-8")
+    assert "跳过(已存在)" in text

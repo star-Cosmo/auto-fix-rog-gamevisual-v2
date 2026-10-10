@@ -55,10 +55,15 @@ class FixPlan:
     profile for this panel — so an empty plan then means "already fixed",
     while an empty plan with ``panel_covered=False`` means "library lacks
     this panel and we cannot invent a profile".
+
+    ``rejections`` records *why* candidate profiles were rejected (one line
+    per parsed ICC that did not match), so a support log explains an empty
+    plan instead of just saying "0 actions".
     """
 
     actions: tuple[CopyAction, ...]
     panel_covered: bool = False
+    rejections: tuple[str, ...] = ()
 
 
 def parse_icm(name: str) -> IcmName | None:
@@ -95,6 +100,7 @@ def build_plan(
     """
     actions: list[CopyAction] = []
     seen_dst: set[str] = set()
+    rejections: list[str] = []
     matched_any = False
 
     def add(action: CopyAction) -> None:
@@ -112,6 +118,7 @@ def build_plan(
         elif icm.monitor_part.endswith(expected_product_code):
             reason = "fallback: same panel product code, different vendor prefix"
         else:
+            rejections.append(f"{name}: monitor_part={icm.monitor_part} != expected={expected_hardware_id}")
             continue
         matched_any = True
         dst = _dst_name(model, icm, icm.monitor_part)
@@ -128,11 +135,17 @@ def build_plan(
     # 2) repair misnamed files already on the system (e.g. wrong vendor prefix)
     for name in system_names:
         icm = parse_icm(name)
-        if icm is None or icm.model != model:
+        if icm is None:
+            continue
+        if icm.model != model:
+            rejections.append(f"{name}: model={icm.model} != {model}")
             continue
         if icm.monitor_part == expected_hardware_id:
             continue
         if not icm.monitor_part.endswith(expected_product_code):
+            rejections.append(
+                f"{name}: monitor_part={icm.monitor_part} not ending with product={expected_product_code}"
+            )
             continue
         # repairing a wrong vendor prefix still covers the panel itself
         matched_any = True
@@ -163,7 +176,7 @@ def build_plan(
                     )
                 )
 
-    return FixPlan(actions=tuple(actions), panel_covered=matched_any)
+    return FixPlan(actions=tuple(actions), panel_covered=matched_any, rejections=tuple(rejections))
 
 
 def build_generated_plan(

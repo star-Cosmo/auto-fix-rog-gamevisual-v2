@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .edid import Chromaticity
 from .iccgen import build_icc
+from .logger import detail
 from .planner import (
     SOURCE_GENERATED,
     SOURCE_LIBRARY,
@@ -41,6 +42,7 @@ def backup_gamevisual(gv_dir: Path) -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     backup_dir = gv_dir.parent / f"{gv_dir.name}_backup_{stamp}"
     shutil.copytree(gv_dir, backup_dir)
+    detail(f"备份 GameVisual 目录 -> {backup_dir}")
     return backup_dir
 
 
@@ -70,6 +72,7 @@ def apply(
         dst = gv_dir / action.dst_file
         if dst.exists():
             skipped += 1
+            detail(f"跳过(已存在): {action.dst_file}")
             continue
         if action.src_dir == SOURCE_GENERATED:
             if chromaticity is None:
@@ -80,6 +83,7 @@ def apply(
             icc_bytes = build_icc(chromaticity)
             dst.write_bytes(icc_bytes)
             copied += 1
+            detail(f"生成: {action.dst_file}（{len(icc_bytes)} 字节）")
             continue
         src_root = {SOURCE_LIBRARY: library_dir, SOURCE_SYSTEM: gv_dir}[action.src_dir]
         src = src_root / action.src_name
@@ -87,10 +91,12 @@ def apply(
             raise ApplyError(f"source vanished before copy: {src}")
         shutil.copy2(src, dst)
         copied += 1
+        detail(f"复制: {action.src_name} -> {action.dst_file}")
         if action.extra_dst_dir == "spool":
             spool_dst = spool_dir / action.dst_file
             if not spool_dst.exists():
                 spool_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, spool_dst)
                 copied += 1
+                detail(f"同时复制到系统色彩目录: {action.dst_file}")
     return AppliedReport(copied=copied, skipped=skipped, backup_path=backup_path)

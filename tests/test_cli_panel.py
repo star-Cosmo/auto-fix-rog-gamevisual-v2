@@ -37,3 +37,48 @@ def test_reason_zh_translates_known_and_misnamed():
     assert _reason_zh("bundled profile matches panel hardware id") == "ICC 库里有这个面板的文件，直接匹配"
     assert _reason_zh("repair misnamed id 6F0E150F -> 770E150F") == "修正错误命名的旧文件（6F0E150F -> 770E150F）"
     assert _reason_zh("unknown reason") == "unknown reason"
+
+
+def test_offer_device_manager_opens_when_1(monkeypatch, tmp_path):
+    """输入 1 -> 打开设备管理器并在日志记录「已为用户打开」."""
+    import gamevisual_fixer.cli as cli
+    from gamevisual_fixer.logger import RunLog
+
+    opened: list[bool] = []
+    monkeypatch.setattr(cli, "_ask", lambda *a, **k: "1")
+    monkeypatch.setattr(cli, "_open_device_manager", lambda: opened.append(True) or True)
+    log = RunLog(log_dir=tmp_path)
+    cli._offer_device_manager(log)
+    assert opened == [True]
+    assert "已为用户打开" in log.finish().read_text(encoding="utf-8")
+
+
+def test_offer_device_manager_skips_when_2(monkeypatch, tmp_path):
+    """输入 2 -> 跳过打开，日志记录「用户跳过」."""
+    import gamevisual_fixer.cli as cli
+    from gamevisual_fixer.logger import RunLog
+
+    monkeypatch.setattr(cli, "_ask", lambda *a, **k: "2")
+    log = RunLog(log_dir=tmp_path)
+    cli._offer_device_manager(log)
+    assert "用户跳过" in log.finish().read_text(encoding="utf-8")
+
+
+def test_child_log_target(monkeypatch, tmp_path):
+    """_child_log_target 只在「提权子进程 + 父进程日志已存在」时返回路径."""
+    import gamevisual_fixer.cli as cli
+    from argparse import Namespace
+
+    # 非提权 -> None
+    assert cli._child_log_target(Namespace(elevated=False)) is None
+    # 提权但无环境变量 -> None
+    monkeypatch.delenv("GVFIX_LOG_FILE", raising=False)
+    assert cli._child_log_target(Namespace(elevated=True)) is None
+    # 提权 + 父日志存在 -> 返回该路径
+    existing = tmp_path / "log.log"
+    existing.write_text("x", encoding="utf-8")
+    monkeypatch.setenv("GVFIX_LOG_FILE", str(existing))
+    assert cli._child_log_target(Namespace(elevated=True)) == existing
+    # 提权 + 指向不存在的文件 -> None
+    monkeypatch.setenv("GVFIX_LOG_FILE", str(tmp_path / "nope.log"))
+    assert cli._child_log_target(Namespace(elevated=True)) is None
