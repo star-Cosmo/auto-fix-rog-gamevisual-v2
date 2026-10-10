@@ -82,3 +82,64 @@ def test_child_log_target(monkeypatch, tmp_path):
     # 提权 + 指向不存在的文件 -> None
     monkeypatch.setenv("GVFIX_LOG_FILE", str(tmp_path / "nope.log"))
     assert cli._child_log_target(Namespace(elevated=True)) is None
+
+
+def test_open_device_manager_uses_shelleexecute(monkeypatch):
+    """修复后 _open_device_manager 走 ShellExecuteW（mmc.exe 需提权，Popen 会 740 失败）."""
+    import ctypes
+
+    import gamevisual_fixer.cli as cli
+
+    calls: list[tuple] = []
+
+    def fake_shell(hwnd, op, file, params, directory, show):  # noqa: A002
+        calls.append((op, file, params))
+        return 42  # > 32 = 成功
+
+    monkeypatch.setattr(ctypes.windll.shell32, "ShellExecuteW", fake_shell)
+    assert cli._open_device_manager() is True
+    assert calls == [("open", "mmc.exe", "devmgmt.msc")]
+
+
+def test_open_device_manager_false_when_denied(monkeypatch):
+    """ShellExecuteW 返回 <=32（如 5=拒绝 / 1223=取消）时 _open_device_manager 返回 False."""
+    import ctypes
+
+    import gamevisual_fixer.cli as cli
+
+    monkeypatch.setattr(ctypes.windll.shell32, "ShellExecuteW", lambda *a, **k: 5)
+    assert cli._open_device_manager() is False
+
+
+def test_wants_quit_markers():
+    """识别 q/quit/exit/退出 为退出标记."""
+    import gamevisual_fixer.cli as cli
+
+    for raw in ("q", "Q", "quit", "exit", "退出"):
+        assert cli._wants_quit(raw) is True
+    for raw in ("1", "2", "", "yes", "开始"):
+        assert cli._wants_quit(raw) is False
+
+
+def test_offer_device_manager_quits_on_q(monkeypatch, tmp_path):
+    """输入 q -> 抛 _UserQuit，退出且不做任何修改."""
+    import pytest
+
+    import gamevisual_fixer.cli as cli
+    from gamevisual_fixer.logger import RunLog
+
+    monkeypatch.setattr(cli, "_ask", lambda *a, **k: "q")
+    log = RunLog(log_dir=tmp_path)
+    with pytest.raises(cli._UserQuit):
+        cli._offer_device_manager(log)
+
+
+def test_exit_clean_logs_summary_and_returns_zero(tmp_path):
+    """_exit_clean 打印退出提示、写入「用户主动退出」并返回 0."""
+    import gamevisual_fixer.cli as cli
+    from gamevisual_fixer.logger import RunLog
+
+    log = RunLog(log_dir=tmp_path)
+    assert cli._exit_clean(log) == 0
+    assert log.path.exists()
+    assert "用户主动退出" in log.path.read_text(encoding="utf-8")

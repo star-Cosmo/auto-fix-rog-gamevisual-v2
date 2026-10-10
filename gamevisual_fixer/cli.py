@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Final
@@ -132,25 +131,49 @@ def _ask(prompt: str) -> str:
         return ""
 
 
-def _open_device_manager() -> bool:
-    """Open Device Manager (devmgmt.msc); True on success.
+class _UserQuit(Exception):
+    """User chose to exit without making any changes."""
 
-    Device Manager has no CLI switch to auto-navigate to a device's
-    hardware-ID page, so we just launch it and print the click-path for
-    the user instead.
+
+def _wants_quit(raw: str) -> bool:
+    """True when the user typed a quit marker."""
+    return raw.strip().lower() in ("q", "quit", "exit", "退出")
+
+
+def _exit_clean(log: RunLog) -> int:
+    """Print the exit message, finish the log, and return exit code 0."""
+    print()
+    print("已退出，本次运行未做任何修改。")
+    log.set_summary("用户主动退出，未做任何修改")
+    log.finish()
+    return 0
+
+
+def _open_device_manager() -> bool:
+    """Open Device Manager; True when the launch was accepted.
+
+    mmc.exe requires elevation, so a plain ``subprocess.Popen`` (CreateProcess)
+    fails with ERROR_ELEVATION_REQUIRED (740). ShellExecute triggers the UAC
+    prompt and opens Device Manager correctly.
     """
+    import ctypes  # noqa: PLC0415 — Windows-only, kept local like sysprobe
+
     try:
-        subprocess.Popen(["mmc.exe", "devmgmt.msc"])
-        return True
+        result = ctypes.windll.shell32.ShellExecuteW(  # type: ignore[attr-defined]
+            None, "open", "mmc.exe", "devmgmt.msc", None, 1
+        )
+        return int(result) > 32
     except OSError:
         return False
 
 
 def _offer_device_manager(log: RunLog) -> None:
-    """Ask up front whether to open Device Manager so the user can see their panel ID."""
+    """Ask up front whether to open Device Manager; raises _UserQuit to exit."""
     print("是否需要打开「设备管理器」，查看你屏幕的硬件 ID？")
     print("  打开后：展开「监视器」→ 右键你的屏幕 → 属性 → 详细信息 → 属性选「硬件 ID」")
-    raw = _ask("输入 1 打开设备管理器，输入 2 直接开始自动修复 [直接回车=2]: ").strip()
+    raw = _ask("输入 1 打开设备管理器，输入 2 直接开始自动修复，输入 q 退出 [直接回车=2]: ").strip()
+    if _wants_quit(raw):
+        raise _UserQuit
     if raw == "1":
         if _open_device_manager():
             log.log_kv("设备管理器", "已为用户打开")
@@ -205,7 +228,9 @@ def _pick_panel(
     print("检测到多块屏幕，且无法自动判断哪块是笔记本内屏:")
     for idx, (_hwid, info) in enumerate(ordered, start=1):
         print(f"  {idx}. 厂商={info.vendor}  硬件ID={info.hardware_id}（产品号 {info.product_code}）")
-    raw = _ask(f"请选择笔记本内屏对应的序号 [1-{len(ordered)}，直接回车=1]: ")
+    raw = _ask(f"请选择笔记本内屏对应的序号 [1-{len(ordered)}，输入 q 退出，直接回车=1]: ")
+    if _wants_quit(raw):
+        raise _UserQuit
     choice = int(raw) - 1 if raw.isdigit() and raw != "0" else 0
     return ordered[choice][1]
 
@@ -216,7 +241,9 @@ def _resolve_model(explicit: str | None) -> str | None:
     found = board_product()
     if isinstance(found, ProbeIssue):
         print(f"[检测提示] 机型: {_detail_zh(found.detail)}")
-        manual = _ask("未能自动识别机型，请手动输入机型型号（如 FX507ZM）: ")
+        manual = _ask("未能自动识别机型，请手动输入机型型号（如 FX507ZM），输入 q 退出: ")
+        if _wants_quit(manual):
+            raise _UserQuit
         return manual or None
     print(f"识别到机型: {found}")
     return found
@@ -268,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
     activate(log)
     try:
         return _run(args, log)
+    except _UserQuit:
+        return _exit_clean(log)
     except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
         print("程序遇到意外错误，已停止。", file=sys.stderr)
         log.log_exception(sys.exc_info()[1])
@@ -382,7 +411,10 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         print("请选择（只需输入数字后回车）:")
         print("  1. 立即用内置构造器生成校色文件并修复")
         print("  2. 暂不修复（ICC 库更新后会包含你的面板，敬请期待）")
-        choice = _ask("请输入 [1 或 2，直接回车=1]: ").strip()
+        print("  q. 退出（本次不做任何修改）")
+        choice = _ask("请输入 [1 或 2，输入 q 退出，直接回车=1]: ").strip()
+        if _wants_quit(choice):
+            raise _UserQuit
         if choice == "2":
             print()
             print("已跳过本次修复。")
@@ -476,13 +508,10 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
         log.finish()
         return 0
 
-    if args.ask:
-        answer = _ask("确认执行修复? [直接回车=确认，输入 n=取消]: ").lower()
-        if answer.startswith("n"):
-            print("已取消，本次没有修改任何文件。")
-            log.set_summary("用户手动取消")
-            log.finish()
-            return 0
+    if not args.elevated:
+        answer = _ask("即将备份并修复（把校色文件写入奥创中心目录）。直接回车=开始修复，输入 q 退出: ").strip()
+        if _wants_quit(answer):
+            raise _UserQuit
 
     print()
     print("第 3 步 / 共 3 步: 备份并修复（无需你操作）")
