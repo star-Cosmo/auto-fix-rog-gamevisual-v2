@@ -100,19 +100,23 @@ def _nice_axis(max_value: int, max_ticks: int = 8) -> tuple[int, int]:
 
 
 def render_svg(history: dict) -> str:
-    """Render an SVG line chart from the history map (latest value in title)."""
+    """Render an SVG chart of *daily* new downloads (delta between days)."""
     items = sorted(history.items())
     if not items:
         items = [(datetime.now(timezone.utc).date().isoformat(), 0)]
     dates = [d for d, _ in items]
     totals = [int(t) for _, t in items]
 
+    # 每日新增下载量 = 相邻两天累计值之差（首日无历史，作为种子点等于当日累计）
+    values = [totals[0]]
+    values += [totals[i] - totals[i - 1] for i in range(1, len(totals))]
+
     width, height = 720, 340
     pad_left, pad_right, pad_top, pad_bottom = 70, 24, 24, 52
     plot_w = width - pad_left - pad_right
     plot_h = height - pad_top - pad_bottom
 
-    peak = max(totals) if totals else 0
+    peak = max(values) if values else 0
     step, axis_max = _nice_axis(peak)
 
     count = len(items)
@@ -156,7 +160,7 @@ def render_svg(history: dict) -> str:
         f'y2="{height - pad_bottom}" stroke="#9ca3af" stroke-width="1"/>'
     )
 
-    points = " ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in enumerate(totals))
+    points = " ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in enumerate(values))
 
     # Area fill
     area = f"{pad_left},{y_at(0):.1f} " + points + f" {x_at(count - 1):.1f},{y_at(0):.1f}"
@@ -167,7 +171,7 @@ def render_svg(history: dict) -> str:
         f'<polyline points="{points}" fill="none" stroke="#2563eb" '
         f'stroke-width="2.5" stroke-linejoin="round"/>'
     )
-    for i, value in enumerate(totals):
+    for i, value in enumerate(values):
         cx, cy = x_at(i), y_at(value)
         parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.2" fill="#2563eb"/>')
         parts.append(

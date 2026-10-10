@@ -10,7 +10,7 @@
 
 ## 📈 已帮助过的用户累计
 
-下载量随每次发版持续累积，曲线每日自动更新：
+每日新增下载量趋势（曲线每日自动更新）：
 
 <img src="https://raw.githubusercontent.com/star-Cosmo/auto-fix-rog-gamevisual-v2/chart/docs/download-chart.svg" width="720" alt="下载量历史曲线">
 
