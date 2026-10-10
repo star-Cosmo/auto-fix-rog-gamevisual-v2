@@ -85,7 +85,7 @@ def render_svg(history: dict) -> str:
     totals = [int(t) for _, t in items]
 
     width, height = 720, 340
-    pad_left, pad_right, pad_top, pad_bottom = 70, 24, 40, 52
+    pad_left, pad_right, pad_top, pad_bottom = 70, 24, 24, 52
     plot_w = width - pad_left - pad_right
     plot_h = height - pad_top - pad_bottom
 
@@ -165,11 +165,6 @@ def render_svg(history: dict) -> str:
             f'text-anchor="middle" font-size="11" fill="#6b7280">{label}</text>'
         )
 
-    # Title
-    parts.append(
-        f'<text x="{pad_left}" y="24" font-size="15" font-weight="600" fill="#111827">'
-        f'已帮助过的用户累计: {totals[-1]}</text>'
-    )
     parts.append("</svg>")
     return "\n".join(parts)
 
