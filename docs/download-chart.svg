@@ -19,9 +19,9 @@
 <text x="60" y="28.0" text-anchor="end" font-size="12" fill="#6b7280">140</text>
 <line x1="70" y1="24" x2="70" y2="288" stroke="#9ca3af" stroke-width="1"/>
 <line x1="70" y1="288" x2="696" y2="288" stroke="#9ca3af" stroke-width="1"/>
-<polygon points="70,288.0 383.0,59.8 383.0,288.0" fill="#2563eb" opacity="0.08"/>
-<polyline points="383.0,59.8" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="383.0" cy="59.8" r="3.2" fill="#2563eb"/>
-<text x="383.0" y="50.8" text-anchor="middle" font-size="11" font-weight="600" fill="#1d4ed8">121</text>
+<polygon points="70,288.0 383.0,54.2 383.0,288.0" fill="#2563eb" opacity="0.08"/>
+<polyline points="383.0,54.2" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="383.0" cy="54.2" r="3.2" fill="#2563eb"/>
+<text x="383.0" y="45.2" text-anchor="middle" font-size="11" font-weight="600" fill="#1d4ed8">124</text>
 <text x="383.0" y="310" text-anchor="middle" font-size="11" fill="#6b7280">10-10</text>
 </svg>
