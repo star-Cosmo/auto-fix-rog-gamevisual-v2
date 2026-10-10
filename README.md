@@ -4,6 +4,8 @@
 
 **简体中文** | [English](README_EN.md) | [日本語](README_JA.md)
 
+> **关键词**：ROG · 天选 · 华硕 · 换屏 · GameVisual · 失效 · ICC 缺失 · 奥创中心 · 护眼模式 · 黑白模式 · EDID · 校色 · 屏幕
+
 修复华硕/ROG 机型**更换屏幕后，奥创中心（Armoury Crate）GameVisual 色彩模式失效**的工具。
 
 一键运行，自动完成一切：没有 Python 环境？自动弹窗询问并下载便携版安装。检测屏幕 EDID、计算正确文件名、备份并修复 ICC 配置文件，全程无需管理员权限手动操作。
