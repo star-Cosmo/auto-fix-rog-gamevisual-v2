@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import time
 import urllib.error
@@ -76,6 +77,28 @@ def load_history(path: Path) -> dict:
     return {}
 
 
+def _nice_axis(max_value: int, max_ticks: int = 8) -> tuple[int, int]:
+    """Pick a regular integer Y step + rounded top for a clean axis.
+
+    Returns ``(step, axis_max)`` where ``step`` is a "nice" number
+    (1/2/5 x 10^n) chosen so the axis holds at most ``max_ticks`` intervals,
+    and ``axis_max`` is ``max_value`` rounded up to a whole multiple of it.
+    A count of 121 thus yields step 20 / top 140 -> 0,20,40,...,140.
+    """
+    max_value = max(1, int(max_value))
+    raw = max_value / max_ticks
+    magnitude = 10 ** math.floor(math.log10(max(1.0, raw)))
+    while True:
+        for factor in (1, 2, 5):
+            step = factor * magnitude
+            if step < 1:
+                continue
+            intervals = math.ceil(max_value / step)
+            if intervals <= max_ticks:
+                return step, intervals * step
+        magnitude *= 10
+
+
 def render_svg(history: dict) -> str:
     """Render an SVG line chart from the history map (latest value in title)."""
     items = sorted(history.items())
@@ -89,8 +112,8 @@ def render_svg(history: dict) -> str:
     plot_w = width - pad_left - pad_right
     plot_h = height - pad_top - pad_bottom
 
-    max_value = max(totals) if totals else 0
-    max_value = max(1, int(max_value * 1.15))
+    peak = max(totals) if totals else 0
+    step, axis_max = _nice_axis(peak)
 
     count = len(items)
     spans_years = bool(dates) and dates[0][:4] != dates[-1][:4]
@@ -99,7 +122,7 @@ def render_svg(history: dict) -> str:
         return pad_left + plot_w / 2 if count == 1 else pad_left + plot_w * i / (count - 1)
 
     def y_at(value: float) -> float:
-        return pad_top + plot_h * (1 - value / max_value)
+        return pad_top + plot_h * (1 - value / axis_max)
 
     parts: list[str] = []
     parts.append('<?xml version="1.0" encoding="UTF-8"?>')
@@ -111,9 +134,8 @@ def render_svg(history: dict) -> str:
     )
     parts.append(f'<rect width="{width}" height="{height}" fill="#ffffff"/>')
 
-    # Y grid + labels
-    for step in range(5):
-        value = max_value * step / 4
+    # Y grid + labels (regular integer steps, e.g. 0,20,40,...)
+    for value in range(0, axis_max + 1, step):
         gy = y_at(value)
         parts.append(
             f'<line x1="{pad_left}" y1="{gy:.1f}" x2="{width - pad_right}" y2="{gy:.1f}" '
@@ -121,7 +143,7 @@ def render_svg(history: dict) -> str:
         )
         parts.append(
             f'<text x="{pad_left - 10}" y="{gy + 4:.1f}" text-anchor="end" '
-            f'font-size="12" fill="#6b7280">{int(value)}</text>'
+            f'font-size="12" fill="#6b7280">{value}</text>'
         )
 
     # Axes
@@ -146,7 +168,12 @@ def render_svg(history: dict) -> str:
         f'stroke-width="2.5" stroke-linejoin="round"/>'
     )
     for i, value in enumerate(totals):
-        parts.append(f'<circle cx="{x_at(i):.1f}" cy="{y_at(value):.1f}" r="3.2" fill="#2563eb"/>')
+        cx, cy = x_at(i), y_at(value)
+        parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.2" fill="#2563eb"/>')
+        parts.append(
+            f'<text x="{cx:.1f}" y="{cy - 9:.1f}" text-anchor="middle" '
+            f'font-size="11" font-weight="600" fill="#1d4ed8">{value}</text>'
+        )
 
     # X labels (at most ~7; include year when the span crosses a year boundary)
     label_step = max(1, count // 6)
