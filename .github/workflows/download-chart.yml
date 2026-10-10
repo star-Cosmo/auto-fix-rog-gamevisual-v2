@@ -1,0 +1,54 @@
+name: Update Download Chart
+
+# 每日快照下载总量 -> 重绘 SVG 曲线图 -> 提交到独立的 chart 分支（保持 main 历史干净）
+on:
+  schedule:
+    - cron: "0 17 * * *" # 每日 UTC 17:00（北京时间次日 01:00）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: download-chart
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出 main（脚本与工作流来源）
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 检出 chart 分支（历史数据与图表存放处）
+        uses: actions/checkout@v4
+        with:
+          ref: chart
+          path: chart
+
+      - name: 抓取下载总量并重绘图表
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: "star-Cosmo/auto-fix-rog-gamevisual-v2"
+        run: |
+          python .github/scripts/update_download_chart.py \
+            --history chart/docs/download-history.json \
+            --chart chart/docs/download-chart.svg
+
+      - name: 提交并推送到 chart 分支
+        run: |
+          cd chart
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/download-history.json docs/download-chart.svg
+          if git diff --cached --quiet; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "chore: 更新下载量曲线图 [skip ci]"
+            git push
+          fi

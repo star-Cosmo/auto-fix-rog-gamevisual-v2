@@ -8,6 +8,12 @@
 
 一键运行，自动完成一切：没有 Python 环境？自动弹窗询问并下载便携版安装。检测屏幕 EDID、计算正确文件名、备份并修复 ICC 配置文件，全程无需管理员权限手动操作。
 
+## 📈 项目热度
+
+下载量随每次发版持续累积，曲线每日自动更新：
+
+<img src="https://raw.githubusercontent.com/star-Cosmo/auto-fix-rog-gamevisual-v2/chart/docs/download-chart.svg" width="720" alt="下载量历史曲线">
+
 ## 原理
 
 奥创中心的 GameVisual 按 `{机型}_{显卡}_{屏幕硬件ID}.icm` 的命名在 `C:\ProgramData\ASUS\GameVisual\` 寻找色彩配置文件。换屏后新面板的硬件 ID 没有对应文件，校验失败，功能被禁用。
