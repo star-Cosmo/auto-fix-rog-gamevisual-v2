@@ -25,7 +25,7 @@ def _dst_files(plan):  # type: ignore[no-untyped-def]
 
 
 def test_library_match_renames_model_and_routes_cmdef() -> None:
-    """Given bundled profiles for the same panel id, When planned, Then renamed to host model and CMDEF also goes to spool."""
+    """Given bundled profiles for the same panel id, When planned, Then renamed to host model + CMDEF to spool."""
     plan = build_plan("FX507ZM", "E5090B74", "0B74", LIBRARY, SYSTEM)
     dsts = _dst_files(plan)
     assert "FX507ZM_10DE_E5090B74.icm" in dsts
@@ -38,7 +38,7 @@ def test_library_match_renames_model_and_routes_cmdef() -> None:
 
 
 def test_misnamed_system_file_is_repaired() -> None:
-    """Given only misnamed system files (wrong vendor prefix), When planned, Then corrected-name copy emitted from that file."""
+    """Given only misnamed system files (wrong vendor prefix), When planned, Then corrected-name copy emitted."""
     plan = build_plan("FX507ZM", "770E150F", "150F", [], ["FX507ZM_8086_6F0E150F.icm"])
     assert len(plan.actions) == 1
     action = plan.actions[0]

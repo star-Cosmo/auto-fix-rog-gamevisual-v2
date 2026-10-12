@@ -21,12 +21,12 @@ dev = ["pytest>=8", "ruff>=0.6", "basedpyright>=1.18"]
 
 [tool.ruff]
 target-version = "py310"
+line-length = 120
 
 [tool.ruff.lint]
-select = ["ALL"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "PLR2004", "SLF001", "ARG001", "D100", "D103"]
+# 务实规则集：E/F/W（pycodestyle + pyflakes）、I（import 排序）、UP（语法现代化）、B（常见 bug）。
+# 本工具含大量中文全角标点与 CLI print，ruff 的 "ALL" 会误报上千条（RUF001/T201 等），故不启用 ALL。
+select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.basedpyright]
 typeCheckingMode = "all"

@@ -14,7 +14,6 @@ from .edid import EdidInfo
 from .logger import RunLog, activate, deactivate
 from .planner import (
     SOURCE_LIBRARY,
-    SOURCE_SYSTEM,
     FixPlan,
     build_generated_plan,
     build_plan,
@@ -53,6 +52,7 @@ def _detect_gpu_segment(system_names: list[str]) -> str:
         if len(parts) >= 3 and parts[1] in _GPU_SEGMENTS_PREFERENCE:
             return parts[1]
     return _GPU_SEGMENTS_PREFERENCE[0]
+
 
 # planner 生成的原因是英文，展示层翻译成小白能看懂的说法
 REASON_ZH: Final[dict[str, str]] = {
@@ -100,8 +100,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         description="修复华硕/ROG 换屏后奥创中心 GameVisual 失效。",
     )
     parser.add_argument("--dry-run", action="store_true", help="只看计划，不修改任何文件")
-    parser.add_argument("--yes", action="store_true", help="兼容保留（默认已自动执行）")
-    parser.add_argument("--ask", action="store_true", help="修复前询问确认（默认自动执行）")
+    parser.add_argument("--yes", action="store_true", help="兼容保留（现已默认自动执行，此参数无实际作用）")
+    parser.add_argument("--ask", action="store_true", help="兼容保留（现已在修复前默认确认，此参数无实际作用）")
     parser.add_argument(
         "--library", type=Path, default=None, help="自定义 ICC 库目录（默认本仓库 color/）"
     )
@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         return _run(args, log)
     except _UserQuit:
         return _exit_clean(log)
-    except Exception:  # noqa: BROAD_EXCEPT_OK — single top-level boundary
+    except Exception:  # 顶层唯一异常边界（有意为之）
         print("程序遇到意外错误，已停止。", file=sys.stderr)
         log.log_exception(sys.exc_info()[1])
         log.set_summary("程序异常终止，请把桌面日志发给 star（chenbin2004sz@163.com）")
@@ -313,9 +313,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args: argparse.Namespace, log: RunLog) -> int:
-    log.log("参数: dry_run={}, ask={}, model={}, panel_hwid={}".format(
-        args.dry_run, args.ask, args.model, args.panel_hwid
-    ))
+    log.log(f"参数: dry_run={args.dry_run}, ask={args.ask}, model={args.model}, panel_hwid={args.panel_hwid}")
     log.log_kv("进程 PID", str(os.getpid()))
     log.log_kv("管理员权限", "是" if is_admin() else "否")
     print("==== GameVisual 修复工具 v2 ====")
@@ -334,7 +332,10 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
     log.log_section("第 1 步: 检测屏幕与机型")
     log.log_kv("检测到面板数", str(len(panel_infos)))
     for idx, pi in enumerate(panel_infos):
-        log.log_kv(f"面板 {idx+1}", f"PnP={pi.pnp_name}  厂商={pi.info.vendor}  硬件ID={pi.info.hardware_id}  产品号={pi.info.product_code}")
+        log.log_kv(
+            f"面板 {idx+1}",
+            f"PnP={pi.pnp_name}  厂商={pi.info.vendor}  硬件ID={pi.info.hardware_id}  产品号={pi.info.product_code}",
+        )
     for issue in panel_issues:
         log.log_kv("检测提示", f"{issue.source}: {issue.detail}")
     log.log_kv("ICC 库文件数", str(len(library_names)))
@@ -459,13 +460,6 @@ def _run(args: argparse.Namespace, log: RunLog) -> int:
             log.set_summary("试运行结束（将生成校色文件）")
             log.finish()
             return 0
-        if args.ask:
-            answer = _ask("确认生成并应用? [直接回车=确认，输入 n=取消]: ").lower()
-            if answer.startswith("n"):
-                print("已取消，本次没有修改任何文件。")
-                log.set_summary("用户手动取消")
-                log.finish()
-                return 0
         print()
         print("第 3 步 / 共 3 步: 生成并应用校色文件（无需你操作）")
         print("-" * 46)

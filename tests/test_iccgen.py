@@ -71,7 +71,7 @@ def test_xyz_tags_carry_type_header() -> None:
 def test_trc_tags_are_curv_gamma() -> None:
     """Then TRC tags are curveType and encode the panel gamma."""
     icc = build_icc(_PANEL)
-    for sig, toff, tsize in _tag_table(icc):
+    for sig, toff, _tsize in _tag_table(icc):
         if sig in {b"rTRC", b"gTRC", b"bTRC"}:
             assert icc[toff : toff + 4] == b"curv"
             count = struct.unpack(">I", icc[toff + 8 : toff + 12])[0]

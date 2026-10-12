@@ -96,9 +96,12 @@ flowchart LR
   <img src="docs/images/popup-confirm.png" width="420" alt="环境自举确认弹窗">
 </p>
 
-2. 程序自动检测你的机型和屏幕，生成修复计划并**自动执行**
-3. 中途弹出 UAC 窗口（问你是否允许修改）→ 点「是」
-4. 看到「修复完成!」大字提示即为成功，**修复前会自动备份**到 `C:\ProgramData\ASUS\GameVisual_backup_时间戳\`，可随时还原
+2. 启动后会先问你**是否打开设备管理器**查看屏幕硬件 ID：按 `1` 打开（可对照下文的硬件 ID 说明）/ 按 `2` 跳过
+3. 程序自动检测你的机型和屏幕，生成修复计划；**修复前会询问确认**（直接回车=开始修复，输入 `q`=退出）
+4. 中途弹出 UAC 窗口（问你是否允许修改）→ 点「是」
+5. 看到「修复完成!」大字提示即为成功，**修复前会自动备份**到 `C:\ProgramData\ASUS\GameVisual_backup_时间戳\`，可随时还原
+
+> 每一步都可以输入 `q` 退出，退出时不对系统做任何修改。
 
 接了外接显示器的情况：程序会自动识别笔记本内屏；万一无法判断，会列出面板列表让你输序号（选不带外接品牌的那项）。
 
@@ -146,17 +149,18 @@ flowchart LR
 
 ```text
 python fix_gamevisual.py --dry-run   # 只看计划，不改任何文件
-python fix_gamevisual.py --ask       # 修复前要确认（默认自动执行）
+python fix_gamevisual.py --debug     # 记录详细调试信息到日志（排障用）
 python fix_gamevisual.py --model FX507ZM --panel-hwid 770E150F   # 手动指定
 ```
 
 | 参数 | 说明 |
 |---|---|
 | `--dry-run` | 只显示将要做的操作，不写任何文件 |
-| `--ask` | 修复前询问确认（默认自动执行） |
+| `--debug` | 日志里记录详细调试信息（排障用） |
 | `--library <目录>` | 自定义 ICC 库目录（默认本仓库 `color/`） |
 | `--model <代码>` | 手动指定机型代码 |
 | `--panel-hwid <8位>` | 手动指定面板硬件 ID |
+| `--ask` / `--yes` | 兼容保留，现已无实际作用（修复前默认总会确认一次） |
 
 </details>
 

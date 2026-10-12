@@ -35,10 +35,10 @@ from typing import Final
 _BOM: Final = "\ufeff"
 
 # Module-level active run log; None until cli.main() activates one.
-_active: "RunLog | None" = None
+_active: RunLog | None = None
 
 
-def activate(log: "RunLog") -> None:
+def activate(log: RunLog) -> None:
     """Point the module-level bus at the active run log."""
     global _active
     _active = log

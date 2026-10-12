@@ -66,8 +66,9 @@ def test_offer_device_manager_skips_when_2(monkeypatch, tmp_path):
 
 def test_child_log_target(monkeypatch, tmp_path):
     """_child_log_target 只在「提权子进程 + 父进程日志已存在」时返回路径."""
-    import gamevisual_fixer.cli as cli
     from argparse import Namespace
+
+    import gamevisual_fixer.cli as cli
 
     # 非提权 -> None
     assert cli._child_log_target(Namespace(elevated=False)) is None
